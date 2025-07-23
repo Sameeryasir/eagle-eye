@@ -3,14 +3,12 @@ import { DataSource } from 'typeorm';
 
 export const AppDataSource = new DataSource({
   type: 'postgres',
-  host: 'aws-0-ap-southeast-1.pooler.supabase.com',
-  port: 5432,
-  username: 'postgres.pancmadrkjqssrpyggob',
-  password: 'Secret@1234',
-  database: 'postgres',
-  ssl: {
-    rejectUnauthorized: false,
-  },
+  host: process.env.DB_HOST,
+  port: parseInt(process.env.DB_PORT || '5432', 10),
+  username: process.env.DB_USERNAME,
+  password: process.env.DB_PASSWORD,
+  database: process.env.DB_NAME,
+  ssl: process.env.DB_SSL === 'true' ? { rejectUnauthorized: false } : false,
   entities: ['src/entities/*.entity.ts'],
   migrations: ['src/db/migrations/*.ts'],
   migrationsTableName: 'migrations',

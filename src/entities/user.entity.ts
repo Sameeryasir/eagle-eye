@@ -1,6 +1,6 @@
 // src/entities/user.entity.ts
-import { Entity, PrimaryGeneratedColumn, Column } from 'typeorm';
-
+import { Entity, PrimaryGeneratedColumn, Column, OneToOne } from 'typeorm';
+import { Otp } from './otp.entity';
 @Entity()
 export class User {
   @PrimaryGeneratedColumn()
@@ -8,4 +8,7 @@ export class User {
 
   @Column()
   email: string;
+
+  @OneToOne(() => Otp, (otp) => otp.user)
+  otp: Otp;
 }

@@ -1,25 +1,29 @@
+// app.module.ts
 import { Module } from '@nestjs/common';
+import { ConfigModule } from '@nestjs/config'; // 👈 ADD THIS
+import { TypeOrmModule } from '@nestjs/typeorm';
 import { AppController } from './app.controller';
 import { AppService } from './app.service';
-import { TypeOrmModule } from '@nestjs/typeorm';
+import { AuthModule } from './auth/auth.module';
 import { User } from './entities/user.entity';
+
 @Module({
   imports: [
+    ConfigModule.forRoot({ isGlobal: true }), // 👈 ADD THIS
     TypeOrmModule.forRoot({
       type: 'postgres',
-      host: 'aws-0-ap-southeast-1.pooler.supabase.com',
-      port: 5432,
-      username: 'postgres.pancmadrkjqssrpyggob',
-      password: 'Secret@1234',
-      database: 'postgres',
-      ssl: {
-        rejectUnauthorized: false,
-      },
+      host: process.env.DB_HOST,
+      port: parseInt(process.env.DB_PORT || '5432', 10),
+      username: process.env.DB_USERNAME,
+      password: process.env.DB_PASSWORD,
+      database: process.env.DB_NAME,
+      ssl: process.env.DB_SSL === 'true' ? { rejectUnauthorized: false } : false,
       entities: [__dirname + '/entities/*.entity{.ts,.js}'],
       migrations: [__dirname + '/db/migrations/*{.ts,.js}'],
       migrationsTableName: 'migrations',
       synchronize: false,
     }),
+    AuthModule,
   ],
   controllers: [AppController],
   providers: [AppService],
