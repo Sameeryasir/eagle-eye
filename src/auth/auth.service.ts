@@ -1,15 +1,15 @@
 import { BadRequestException, Injectable } from '@nestjs/common';
 import { InjectRepository } from '@nestjs/typeorm';
-import { User } from 'src/entities/user.entity';
+import { Users } from 'src/entities/users.entity';
 import { Repository } from 'typeorm';
-import { Otp } from 'src/entities/otp.entity';
+import { Otps } from 'src/entities/otps.entity';
 import { JwtService } from '@nestjs/jwt';
 import * as nodemailer from 'nodemailer';
 @Injectable()
 export class AuthService {
   constructor(
-    @InjectRepository(User) private userRepo: Repository<User>,
-    @InjectRepository(Otp) private otpRepo: Repository<Otp>,
+    @InjectRepository(Users) private userRepo: Repository<Users>,
+    @InjectRepository(Otps) private otpRepo: Repository<Otps>,
     private jwtService: JwtService,
   ) {}
 

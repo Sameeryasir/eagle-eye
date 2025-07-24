@@ -1,4 +1,4 @@
-// src/entities/otp.entity.ts
+// src/entities/otps.entity.ts
 import {
   Entity,
   PrimaryGeneratedColumn,
@@ -7,10 +7,10 @@ import {
   JoinColumn,
   CreateDateColumn,
 } from 'typeorm';
-import { User } from './user.entity';
+import { Users } from './users.entity';
 
 @Entity()
-export class Otp {
+export class Otps {
   @PrimaryGeneratedColumn()
   id: number;
 
@@ -23,7 +23,7 @@ export class Otp {
   @CreateDateColumn()
   createdAt: Date;
 
-  @OneToOne(() => User, { onDelete: 'CASCADE' })
+  @OneToOne(() => Users, { onDelete: 'CASCADE' })
   @JoinColumn({ name: 'user_id' }) 
-  user: User;
-}
+  user: Users;
+} 

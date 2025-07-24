@@ -1,7 +1,7 @@
 import { BadRequestException, Body, Controller, Post, ValidationPipe } from '@nestjs/common';
 import { AuthService } from './auth.service';
-import { SendOtpDto } from './dto/send-otp.dto';
-import { VerifyOtpDto } from './dto/verify-otp.dto';
+import { SendOtpDto } from './authDto/send-otp.dto';
+import { VerifyOtpDto } from './authDto/verify-otp.dto';
 @Controller('auth')
 export class AuthController {
   constructor(private readonly authService: AuthService) {}
