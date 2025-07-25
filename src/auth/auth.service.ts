@@ -13,8 +13,17 @@ export class AuthService {
     private jwtService: JwtService,
   ) {}
 
-  async sendOtp(email: string) {
-    let user = await this.userRepo.findOne({ where: { email } });
+  async sendOtp(email?: string, phone?: string) {
+    let user;
+
+    if (email) {
+      user = await this.userRepo.findOne({ where: { email } });
+    } else if (phone) {
+      user = await this.userRepo.findOne({ where: { phone } });
+    } else {
+      throw new BadRequestException('Email or phone is required');
+    }
+
     if (!user) {
       throw new BadRequestException('User not found');
     }
@@ -33,51 +42,76 @@ export class AuthService {
 
     await this.otpRepo.save(otp);
 
-    // ✅ Setup nodemailer
-    const transporter = nodemailer.createTransport({
-      service: 'gmail',
-      auth: {
-        user: process.env.EMAIL_USER,
-        pass: process.env.EMAIL_PASS,
-      },
-    });
+    if (email) {
+      // ✅ Send OTP via email
+      const transporter = nodemailer.createTransport({
+        service: 'gmail',
+        auth: {
+          user: process.env.EMAIL_USER,
+          pass: process.env.EMAIL_PASS,
+        },
+      });
 
-    // ✅ Send the OTP email
-    await transporter.sendMail({
-      from: `"My App" <${process.env.EMAIL_USER}>`,
-      to: email,
-      subject: 'Your OTP Code',
-      text: `Your verification code is: ${code}`,
-      html: `<p>Hello 👋,</p><p>Your OTP code is: <b>${code}</b></p><p>It will expire in 1 minute.</p>`,
-    });
+      await transporter.sendMail({
+        from: `"My App" <${process.env.EMAIL_USER}>`,
+        to: email,
+        subject: 'Your OTP Code',
+        text: `Your verification code is: ${code}`,
+        html: `<p>Hello 👋,</p><p>Your OTP code is: <b>${code}</b></p><p>It will expire in 1 minute.</p>`,
+      });
 
-    return { message: 'OTP sent to email' };
-  }
-  async verifyOtp(email: string, code: string) {
-    // Add input validation
-    if (!email || !code) {
-      throw new BadRequestException('Email and OTP code are required');
+      return { message: 'OTP sent to email' };
     }
 
-    const user = await this.userRepo.findOne({
-      where: { email },
-      relations: ['otp'],
-    });
-    console.log(user);
-
-    if (!user || !user.otp) return null;
-
-    const otp = user.otp;
-    const isExpired = Date.now() - otp.createdAt.getTime() > 60 * 1000;
-    if (isExpired || otp.isUsed || otp.code !== code) {
-      throw new BadRequestException('Invalid or expired OTP');
-    }
-
-    otp.isUsed = true;
-    await this.otpRepo.save(otp);
-
-    const token = this.jwtService.sign({ email: user.email, sub: user.id });
-
-    return { access_token: token };
+    // ✅ For phone: just save OTP without sending
+    return { message: 'OTP generated and saved for phone number' };
   }
+
+ async verifyOtp(code: string, email?: string, phone?: string) {
+  if (!code || (!email && !phone)) {
+    throw new BadRequestException('OTP code and either email or phone are required');
+  }
+
+  // Find user by email or phone
+  const user = await this.userRepo.findOne({
+    where: email ? { email } : { phone },
+    relations: ['otp', 'role'],
+  });
+
+  if (!user) {
+    throw new BadRequestException('User not found');
+  }
+
+  const otp = user.otp;
+
+  if (!otp) {
+    throw new BadRequestException('OTP record not found');
+  }
+
+  const isExpired = Date.now() - otp.createdAt.getTime() > 60 * 1000;
+  if (isExpired || otp.isUsed || otp.code !== code) {
+    throw new BadRequestException('Invalid or expired OTP');
+  }
+
+  otp.isUsed = true;
+  await this.otpRepo.save(otp);
+
+  const token = this.jwtService.sign({
+    sub: user.id,
+    email: user.email,
+  });
+
+  return {
+    access_token: token,
+    user: {
+      id: user.id,
+      email: user.email,
+      first_name: user.first_name,
+      last_name: user.last_name,
+      phone: user.phone,
+      role: user.role,
+    },
+  };
+}
+
 }

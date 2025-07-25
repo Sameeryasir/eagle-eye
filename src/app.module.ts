@@ -6,6 +6,7 @@ import { AppController } from './app.controller';
 import { AppService } from './app.service';
 import { AuthModule } from './auth/auth.module';
 import { Users } from './entities/users.entity';
+import { Roles } from './entities/roles.entity';
 import { UserModule } from './user/user.module';
 
 @Module({

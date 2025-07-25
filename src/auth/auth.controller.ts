@@ -7,13 +7,13 @@ export class AuthController {
   constructor(private readonly authService: AuthService) {}
 
   @Post('send-otp')
-  async sendOtp(@Body() dto: SendOtpDto) {
+  async sendOtp(@Body(ValidationPipe) dto: SendOtpDto) {
     console.log(dto);
-    return this.authService.sendOtp(dto.email);
+    return this.authService.sendOtp(dto.email, dto.phone);
   }
 
   @Post('verify-otp')
-  async verifyOtp(@Body() dto: VerifyOtpDto) {
-    return this.authService.verifyOtp(dto.email, dto.code);
+  async verifyOtp(@Body(ValidationPipe) dto: VerifyOtpDto) {
+    return this.authService.verifyOtp( dto.code,dto.email,dto.phone);
   }
 }
