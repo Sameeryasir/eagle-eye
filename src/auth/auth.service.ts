@@ -96,7 +96,7 @@ export class AuthService {
       throw new BadRequestException('OTP record not found');
     }
 
-    const isExpired = Date.now() - otp.createdAt.getTime() > 60 * 1000;
+    const isExpired = Date.now() - otp.createdAt.getTime() > 60 * 3000;
     if (isExpired || otp.isUsed || otp.code !== code) {
       throw new BadRequestException('Invalid or expired OTP');
     }
@@ -105,15 +105,16 @@ export class AuthService {
     await this.otpRepo.save(otp);
 
     // Generate access token
-    const accessToken = this.jwtService.sign(
+    const accessToken = await this.jwtService.signAsync(
       { sub: user.id, email: user.email, type: 'access' },
       { expiresIn: process.env.ACCESS_TOKEN_EXPIRY },
     );
 
-    const refreshToken = this.jwtService.sign(
+    const refreshToken = await this.jwtService.signAsync(
       { sub: user.id, email: user.email, type: 'refresh' },
-      { expiresIn: process.env.REFRESH_TOKEN_EXPIRY || '7d' },
+      { expiresIn: process.env.REFRESH_TOKEN_EXPIRY },
     );
+
     await this.userRepo.save(user);
 
     return {
@@ -149,12 +150,12 @@ export class AuthService {
 
       const newAccessToken = this.jwtService.sign(
         { sub: user.id, email: user.email, type: 'access' },
-        { expiresIn: process.env.ACCESS_TOKEN_EXPIRY || '1m' },
+        { expiresIn: process.env.ACCESS_TOKEN_EXPIRY },
       );
 
       const newRefreshToken = this.jwtService.sign(
         { sub: user.id, email: user.email, type: 'refresh' },
-        { expiresIn: process.env.REFRESH_TOKEN_EXPIRY || '7d' },
+        { expiresIn: process.env.REFRESH_TOKEN_EXPIRY },
       );
 
       return {

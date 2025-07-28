@@ -32,8 +32,8 @@ export class CreateUserDto {
 
   @IsOptional()
   @IsString()
-  @Length(11, 11)
-  @Matches(/^\d{10}$/, { message: 'Phone number must be exactly 11 digits' })
+  @Matches(/^\d+$/, { message: 'Phone must be numeric' })
+  @Length(11, 11, { message: 'Phone must be exactly 11 digits' })
   phone?: string;
 
   @IsOptional()
