@@ -1,10 +1,17 @@
-import { BadRequestException, Injectable } from '@nestjs/common';
+import {
+  BadRequestException,
+  Injectable,
+  UnauthorizedException,
+} from '@nestjs/common';
 import { InjectRepository } from '@nestjs/typeorm';
 import { Users } from 'src/entities/users.entity';
 import { Repository } from 'typeorm';
 import { Otps } from 'src/entities/otps.entity';
 import { JwtService } from '@nestjs/jwt';
 import * as nodemailer from 'nodemailer';
+import * as crypto from 'crypto';
+import * as bcrypt from 'bcrypt';
+
 @Injectable()
 export class AuthService {
   constructor(
@@ -25,7 +32,7 @@ export class AuthService {
     }
 
     if (!user) {
-      throw new BadRequestException('User not found');
+      throw new BadRequestException('please try again ');
     }
 
     const code = Math.floor(100000 + Math.random() * 900000).toString();
@@ -67,51 +74,95 @@ export class AuthService {
     return { message: 'OTP generated and saved for phone number' };
   }
 
- async verifyOtp(code: string, email?: string, phone?: string) {
-  if (!code || (!email && !phone)) {
-    throw new BadRequestException('OTP code and either email or phone are required');
+  async verifyOtp(code: string, email?: string, phone?: string) {
+    if (!code || (!email && !phone)) {
+      throw new BadRequestException(
+        'OTP code and either email or phone are required',
+      );
+    }
+
+    const user = await this.userRepo.findOne({
+      where: email ? { email } : { phone },
+      relations: ['otp', 'role'],
+    });
+
+    if (!user) {
+      throw new BadRequestException('Please try again');
+    }
+
+    const otp = user.otp;
+
+    if (!otp) {
+      throw new BadRequestException('OTP record not found');
+    }
+
+    const isExpired = Date.now() - otp.createdAt.getTime() > 60 * 1000;
+    if (isExpired || otp.isUsed || otp.code !== code) {
+      throw new BadRequestException('Invalid or expired OTP');
+    }
+
+    otp.isUsed = true;
+    await this.otpRepo.save(otp);
+
+    // Generate access token
+    const accessToken = this.jwtService.sign(
+      { sub: user.id, email: user.email, type: 'access' },
+      { expiresIn: process.env.ACCESS_TOKEN_EXPIRY },
+    );
+
+    const refreshToken = this.jwtService.sign(
+      { sub: user.id, email: user.email, type: 'refresh' },
+      { expiresIn: process.env.REFRESH_TOKEN_EXPIRY || '7d' },
+    );
+    await this.userRepo.save(user);
+
+    return {
+      access_token: accessToken,
+      refresh_token: refreshToken,
+      user: {
+        id: user.id,
+        email: user.email,
+        first_name: user.first_name,
+        last_name: user.last_name,
+        phone: user.phone,
+        role: user.role,
+      },
+    };
   }
 
-  // Find user by email or phone
-  const user = await this.userRepo.findOne({
-    where: email ? { email } : { phone },
-    relations: ['otp', 'role'],
-  });
+  async refreshAccessToken(refreshToken: string) {
+    try {
+      const payload = this.jwtService.verify(refreshToken);
 
-  if (!user) {
-    throw new BadRequestException('User not found');
+      if (payload.type !== 'refresh') {
+        throw new UnauthorizedException('Invalid token type');
+      }
+
+      const user = await this.userRepo.findOne({
+        where: { id: payload.sub },
+        relations: ['role'],
+      });
+
+      if (!user) {
+        throw new UnauthorizedException('User not found');
+      }
+
+      const newAccessToken = this.jwtService.sign(
+        { sub: user.id, email: user.email, type: 'access' },
+        { expiresIn: process.env.ACCESS_TOKEN_EXPIRY || '1m' },
+      );
+
+      const newRefreshToken = this.jwtService.sign(
+        { sub: user.id, email: user.email, type: 'refresh' },
+        { expiresIn: process.env.REFRESH_TOKEN_EXPIRY || '7d' },
+      );
+
+      return {
+        access_token: newAccessToken,
+        refresh_token: newRefreshToken,
+      };
+    } catch (error) {
+      throw new UnauthorizedException('Invalid or expired refresh token');
+    }
   }
-
-  const otp = user.otp;
-
-  if (!otp) {
-    throw new BadRequestException('OTP record not found');
-  }
-
-  const isExpired = Date.now() - otp.createdAt.getTime() > 60 * 1000;
-  if (isExpired || otp.isUsed || otp.code !== code) {
-    throw new BadRequestException('Invalid or expired OTP');
-  }
-
-  otp.isUsed = true;
-  await this.otpRepo.save(otp);
-
-  const token = this.jwtService.sign({
-    sub: user.id,
-    email: user.email,
-  });
-
-  return {
-    access_token: token,
-    user: {
-      id: user.id,
-      email: user.email,
-      first_name: user.first_name,
-      last_name: user.last_name,
-      phone: user.phone,
-      role: user.role,
-    },
-  };
-}
-
 }

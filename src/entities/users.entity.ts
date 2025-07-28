@@ -30,7 +30,9 @@ export class Users {
   @OneToOne(() => Otps, (otp) => otp.user)
   otp: Otps;
 
- @ManyToOne(() => Roles, (role) => role.users)
+  @ManyToOne(() => Roles, (role) => role.users)
   @JoinColumn({ name: 'roleId' }) // This will store roleId in Users table
   role: Roles;
+
+
 }

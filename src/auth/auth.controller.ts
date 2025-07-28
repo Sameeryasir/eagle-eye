@@ -16,4 +16,12 @@ export class AuthController {
   async verifyOtp(@Body(ValidationPipe) dto: VerifyOtpDto) {
     return this.authService.verifyOtp( dto.code,dto.email,dto.phone);
   }
+   @Post('refresh-token')
+  async refreshToken(@Body('refreshToken') refreshToken: string) {
+    if (!refreshToken) {
+      throw new BadRequestException('Refresh token is required');
+    }
+
+    return this.authService.refreshAccessToken(refreshToken);
+  }
 }
