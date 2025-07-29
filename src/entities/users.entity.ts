@@ -24,7 +24,7 @@ export class Users {
   @Column({ nullable: true }) // last name can be null
   last_name: string;
 
-  @Column({ type: 'varchar', length: 11, unique: true, nullable: true }) // phone can be null
+  @Column({ type: 'varchar', length: 15, unique: true, nullable: true }) // phone can be null
   phone: string;
 
   @OneToOne(() => Otps, (otp) => otp.user)

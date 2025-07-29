@@ -7,7 +7,6 @@ export class VerifyOtpDto {
 
   @ValidateIf((o) => !o.email)
    @Matches(/^\d+$/, { message: 'Phone must be numeric' })
-  @Length(11, 11, { message: 'Phone must be exactly 11 digits' })
   phone?: string;
 
   @Matches(/^\d+$/, { message: 'Code must contain only numeric characters' })

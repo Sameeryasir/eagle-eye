@@ -12,6 +12,5 @@ export class SendOtpDto {
 
   @ValidateIf((o) => !o.email)
   @Matches(/^\d+$/, { message: 'Phone must be numeric' })
-  @Length(11, 11, { message: 'Phone must be exactly 11 digits' })
   phone?: string;
 }

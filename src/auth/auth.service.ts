@@ -9,8 +9,6 @@ import { Repository } from 'typeorm';
 import { Otps } from 'src/entities/otps.entity';
 import { JwtService } from '@nestjs/jwt';
 import * as nodemailer from 'nodemailer';
-import * as crypto from 'crypto';
-import * as bcrypt from 'bcrypt';
 
 @Injectable()
 export class AuthService {
@@ -20,20 +18,35 @@ export class AuthService {
     private jwtService: JwtService,
   ) {}
 
-  async sendOtp(email?: string, phone?: string) {
-    let user;
-
-    if (email) {
-      user = await this.userRepo.findOne({ where: { email } });
-    } else if (phone) {
-      user = await this.userRepo.findOne({ where: { phone } });
-    } else {
-      throw new BadRequestException('Email or phone is required');
-    }
+  private async findUserByEmailOrPhone(email?: string, phone?: string) {
+    const user = await this.userRepo.findOne({
+      where: email ? { email } : { phone },
+      relations: ['otp', 'role'],
+    });
 
     if (!user) {
-      throw new BadRequestException('please try again ');
+      throw new BadRequestException('User not found');
     }
+
+    return user;
+  }
+
+  private async generateTokens(user: Users) {
+    const accessToken = await this.jwtService.signAsync(
+      { sub: user.id, email: user.email, type: 'access' },
+      { expiresIn: process.env.ACCESS_TOKEN_EXPIRY },
+    );
+
+    const refreshToken = await this.jwtService.signAsync(
+      { sub: user.id, email: user.email, type: 'refresh' },
+      { expiresIn: process.env.REFRESH_TOKEN_EXPIRY },
+    );
+
+    return { accessToken, refreshToken };
+  }
+
+  async sendOtp(email?: string, phone?: string) {
+    const user = await this.findUserByEmailOrPhone(email, phone);
 
     const code = Math.floor(100000 + Math.random() * 900000).toString();
 
@@ -50,7 +63,6 @@ export class AuthService {
     await this.otpRepo.save(otp);
 
     if (email) {
-      // ✅ Send OTP via email
       const transporter = nodemailer.createTransport({
         service: 'gmail',
         auth: {
@@ -63,14 +75,12 @@ export class AuthService {
         from: `"My App" <${process.env.EMAIL_USER}>`,
         to: email,
         subject: 'Your OTP Code',
-        text: `Your verification code is: ${code}`,
-        html: `<p>Hello 👋,</p><p>Your OTP code is: <b>${code}</b></p><p>It will expire in 1 minute.</p>`,
+        html: `<p>Hello 👋,</p><p>Your OTP code is: <b>${code}</b></p><p>It will expire in 15 minutes.</p>`,
       });
 
       return { message: 'OTP sent to email' };
     }
 
-    // ✅ For phone: just save OTP without sending
     return { message: 'OTP generated and saved for phone number' };
   }
 
@@ -81,41 +91,22 @@ export class AuthService {
       );
     }
 
-    const user = await this.userRepo.findOne({
-      where: email ? { email } : { phone },
-      relations: ['otp', 'role'],
-    });
-
-    if (!user) {
-      throw new BadRequestException('Please try again');
-    }
+    const user = await this.findUserByEmailOrPhone(email, phone);
 
     const otp = user.otp;
+    if (!otp) throw new BadRequestException('OTP record not found');
+    if (otp.isUsed) throw new BadRequestException('OTP has already been used create new one');
+    if (otp.code !== code) throw new BadRequestException('Invalid OTP code');
+    if (!otp.createdAt)
+      throw new BadRequestException('OTP creation time missing');
 
-    if (!otp) {
-      throw new BadRequestException('OTP record not found');
-    }
-
-    const isExpired = Date.now() - otp.createdAt.getTime() > 60 * 3000;
-    if (isExpired || otp.isUsed || otp.code !== code) {
-      throw new BadRequestException('Invalid or expired OTP');
-    }
+    const isExpired = Date.now() - otp.createdAt.getTime() > 15 * 60 * 1000;
+    if (isExpired) throw new BadRequestException('OTP has expired');
 
     otp.isUsed = true;
     await this.otpRepo.save(otp);
 
-    // Generate access token
-    const accessToken = await this.jwtService.signAsync(
-      { sub: user.id, email: user.email, type: 'access' },
-      { expiresIn: process.env.ACCESS_TOKEN_EXPIRY },
-    );
-
-    const refreshToken = await this.jwtService.signAsync(
-      { sub: user.id, email: user.email, type: 'refresh' },
-      { expiresIn: process.env.REFRESH_TOKEN_EXPIRY },
-    );
-
-    await this.userRepo.save(user);
+    const { accessToken, refreshToken } = await this.generateTokens(user);
 
     return {
       access_token: accessToken,
@@ -132,38 +123,39 @@ export class AuthService {
   }
 
   async refreshAccessToken(refreshToken: string) {
+    let payload: any;
+
     try {
-      const payload = this.jwtService.verify(refreshToken);
-
-      if (payload.type !== 'refresh') {
-        throw new UnauthorizedException('Invalid token type');
-      }
-
-      const user = await this.userRepo.findOne({
-        where: { id: payload.sub },
-        relations: ['role'],
-      });
-
-      if (!user) {
-        throw new UnauthorizedException('User not found');
-      }
-
-      const newAccessToken = this.jwtService.sign(
-        { sub: user.id, email: user.email, type: 'access' },
-        { expiresIn: process.env.ACCESS_TOKEN_EXPIRY },
-      );
-
-      const newRefreshToken = this.jwtService.sign(
-        { sub: user.id, email: user.email, type: 'refresh' },
-        { expiresIn: process.env.REFRESH_TOKEN_EXPIRY },
-      );
-
-      return {
-        access_token: newAccessToken,
-        refresh_token: newRefreshToken,
-      };
-    } catch (error) {
+      // Decode and verify token
+      payload = await this.jwtService.verifyAsync(refreshToken);
+    } catch (err) {
       throw new UnauthorizedException('Invalid or expired refresh token');
     }
+
+    // Now check the token type
+    if (payload.type === 'access') {
+      throw new UnauthorizedException('Invalid token');
+    }
+
+    if (payload.type !== 'refresh') {
+      throw new UnauthorizedException('Invalid token type');
+    }
+
+    const user = await this.userRepo.findOne({
+      where: { id: payload.sub },
+      relations: ['role'],
+    });
+
+    if (!user) {
+      throw new UnauthorizedException('not found');
+    }
+
+    const { accessToken, refreshToken: newRefreshToken } =
+      await this.generateTokens(user);
+
+    return {
+      access_token: accessToken,
+      refresh_token: newRefreshToken,
+    };
   }
 }

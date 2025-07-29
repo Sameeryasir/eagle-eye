@@ -18,7 +18,6 @@ import { UpdateUserDto } from './userDto/update-user.dto';
 import { AuthGuard } from '@nestjs/passport';
 
 @Controller('user')
-
 export class UserController {
   constructor(private readonly userService: UserService) {}
   @Get('all-users')
@@ -30,13 +29,15 @@ export class UserController {
   @Get(':id')
   @UseGuards(AuthGuard('jwt'))
   async getUserById(@Param('id') id: string, @Request() req) {
- 
     const user = await this.userService.findUserById(Number(id), req.user);
     return user;
   }
   @Post('create')
   @UseGuards(AuthGuard('jwt'))
-  async createUser(@Body(ValidationPipe) createUserDto: CreateUserDto, @Request() req) {
+  async createUser(
+    @Body(ValidationPipe) createUserDto: CreateUserDto,
+    @Request() req,
+  ) {
     const users = req.user; // Assuming req.user contains the authenticated user info
     console.log(users);
     return this.userService.createUserWithRole(createUserDto, req.user);
@@ -44,8 +45,11 @@ export class UserController {
 
   @Delete(':id')
   @UseGuards(AuthGuard('jwt'))
-  async deleteById (@Param('id') id:string, @Request() req){
-    const deletedUser = await this.userService.deleteUserById(Number(id), req.user);
+  async deleteById(@Param('id') id: string, @Request() req) {
+    const deletedUser = await this.userService.deleteUserById(
+      Number(id),
+      req.user,
+    );
     return deletedUser;
   }
 
@@ -63,5 +67,4 @@ export class UserController {
     );
     return updatedUser;
   }
-
 }
