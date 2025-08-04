@@ -67,4 +67,14 @@ export class UserController {
     );
     return updatedUser;
   }
+  @Post('send')
+  sendNotification(
+    @Body() body: { token: string; title: string; message: string },
+  ) {
+    return this.userService.sendPushNotification(
+      body.token,
+      body.title,
+      body.message,
+    );
+  }
 }

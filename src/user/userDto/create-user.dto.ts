@@ -35,8 +35,10 @@ export class CreateUserDto {
   @Matches(/^\d+$/, { message: 'Phone must be numeric' })
   phone?: string;
 
-  @IsOptional()
-  @ValidateIf((o) => o.roleId !== undefined && o.roleId !== null)
   @IsNumber({}, { message: 'Role ID must be a number' })
-  roleId?: number;
+  roleId: number;
+
+  @IsOptional()
+  @IsNumber({}, { message: 'Company ID must be a number' })
+  company?: number;
 }

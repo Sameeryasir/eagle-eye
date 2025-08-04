@@ -9,11 +9,12 @@ import { PassportModule } from '@nestjs/passport';
 import { JwtModule } from '@nestjs/jwt';
 import { ConfigModule, ConfigService } from '@nestjs/config';
 import { JwtStrategy } from '../auth/jwt.strategy';
+import { Companies } from 'src/entities/companies.entity';
 
 @Module({
   imports: [
     PassportModule.register({ defaultStrategy: 'jwt' }),
-    TypeOrmModule.forFeature([Users, Otps, Roles]),
+    TypeOrmModule.forFeature([Users, Otps, Roles,Companies]),
     JwtModule.registerAsync({
       imports: [ConfigModule],
       inject: [ConfigService],

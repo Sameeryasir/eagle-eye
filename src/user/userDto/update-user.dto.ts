@@ -39,4 +39,8 @@ export class UpdateUserDto {
   @ValidateIf((o) => o.roleId !== undefined && o.roleId !== null)
   @IsNumber({}, { message: 'Role ID must be a number' })
   roleId?: number;
+
+  @IsNumber()
+  @IsOptional()
+  companyId: number;
 }
