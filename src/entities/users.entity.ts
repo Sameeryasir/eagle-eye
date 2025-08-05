@@ -5,10 +5,14 @@ import {
   OneToOne,
   JoinColumn,
   ManyToOne,
+  OneToMany,
 } from 'typeorm';
 import { Otps } from './otps.entity';
 import { Roles } from './roles.entity';
 import { Companies } from './companies.entity';
+import { Projects } from './projects.entity';
+import { Tasks } from './tasks.entity';
+
 @Entity()
 export class Users {
   @PrimaryGeneratedColumn()
@@ -44,7 +48,13 @@ export class Users {
   createdBy: Users;
 
   // Company the user belongs to (nullable only for Admin)
-  @ManyToOne(() => Companies, { nullable: true ,onDelete:'CASCADE'})
+  @ManyToOne(() => Companies, { nullable: true, onDelete: 'CASCADE' })
   @JoinColumn({ name: 'company_id' })
   company: Companies;
+
+  @OneToMany(() => Projects, (project) => project.owner)
+  ownedProjects: Projects[];
+
+  @OneToMany(() => Tasks, (task) => task.assignedTo)
+  tasks: Tasks[];
 }

@@ -7,8 +7,10 @@ import {
   JoinColumn,
   CreateDateColumn,
   UpdateDateColumn,
+  OneToMany,
 } from 'typeorm';
 import { Users } from './users.entity';
+import { Projects } from './projects.entity';
 
 @Entity()
 export class Companies {
@@ -34,4 +36,7 @@ export class Companies {
   @OneToOne(() => Users, { nullable: true, onDelete: 'SET NULL' })
   @JoinColumn({ name: 'owner_user_id' })
   owner: Users;
+
+  @OneToMany (()=> Projects,(project)=>project.company)
+  projects:Projects[]
 }
