@@ -1,6 +1,7 @@
 import {
   Body,
   Controller,
+  Delete,
   Get,
   Param,
   Post,
@@ -56,6 +57,13 @@ export class TaskController {
       user,
       Number(id),
     );
+    return task;
+  }
+  @Delete(':id')
+  @UseGuards(AuthGuard('jwt'))
+  async deleteTask(@Param('id')id:string ,@Request() req){
+    const user = req.user
+    const task = await this.taskService.deleteTask(Number(id),user)
     return task;
   }
 }

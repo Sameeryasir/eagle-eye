@@ -76,6 +76,11 @@ async createUserWithRole(dto: CreateUserDto, authUser: AuthenticatedUser) {
     throw new BadRequestException('Role not found');
   }
 
+  // 🚫 Only Admin can create users with Owner role
+  if (role.name === 'Owner' && authUser.role.name !== 'Admin') {
+    throw new UnauthorizedException('Only Admin can create users with Owner role');
+  }
+
   // Get the creator user
   const createdBy = await this.userRepo.findOne({ where: { id: authUser.id } });
   if (!createdBy) {
@@ -99,6 +104,19 @@ async createUserWithRole(dto: CreateUserDto, authUser: AuthenticatedUser) {
       if (userCompany.owner) {
         throw new BadRequestException('This company already has an owner');
       }
+    }
+
+    // 🚫 Check if role already exists for the same company
+    const existingUserWithRole = await this.userRepo.findOne({
+      where: {
+        company: { id: company },
+        role: { id: roleId }
+      },
+      relations: ['role', 'company']
+    });
+
+    if (existingUserWithRole) {
+      throw new BadRequestException(`A user with role '${role.name}' already exists in this company`);
     }
   }
 
