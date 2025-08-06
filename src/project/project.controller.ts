@@ -22,8 +22,8 @@ export class ProjectController {
   @Get()
   @UseGuards(AuthGuard('jwt'))
   async getProjects(@Request() req) {
-    const authUser = req.user;
-    const projects = await this.projectService.getProjects(authUser);
+    const user = req.user;
+    const projects = await this.projectService.getProjects(user);
     return projects;
   }
   @Get(':id')

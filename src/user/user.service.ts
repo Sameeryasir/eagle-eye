@@ -77,7 +77,7 @@ async createUserWithRole(dto: CreateUserDto, authUser: AuthenticatedUser) {
   }
 
   // 🚫 Only Admin can create users with Owner role
-  if (role.name === 'Owner' && authUser.role.name !== 'Admin') {
+  if (authUser.role.name !== 'Admin') {
     throw new UnauthorizedException('Only Admin can create users with Owner role');
   }
 
@@ -178,13 +178,27 @@ async createUserWithRole(dto: CreateUserDto, authUser: AuthenticatedUser) {
 
     const user = await this.userRepo.findOne({
       where: { id },
-      relations: ['role'],
+      relations: ['role', 'company'],
     });
     if (!user) throw new BadRequestException('User not found');
 
     if (dto.roleId) {
       const role = await this.roleRepo.findOne({ where: { id: dto.roleId } });
       if (!role) throw new BadRequestException('Role not found');
+
+      // Check if updating to Owner role
+      if (role.name === 'Owner' && user.company) {
+        const company = await this.companyRepo.findOne({
+          where: { id: user.company.id },
+          relations: ['owner'],
+        });
+        
+        // Prevent multiple owners
+        if (company && company.owner && company.owner.id !== user.id) {
+          throw new BadRequestException('This company already has an owner');
+        }
+      }
+
       user.role = role;
     }
 
@@ -194,7 +208,15 @@ async createUserWithRole(dto: CreateUserDto, authUser: AuthenticatedUser) {
     user.phone = dto.phone ?? user.phone;
 
     try {
-      return await this.userRepo.save(user);
+      const savedUser = await this.userRepo.save(user);
+
+      // Set user as company owner if role is Owner
+      if (dto.roleId && user.role.name === 'Owner' && user.company) {
+        user.company.owner = savedUser;
+        await this.companyRepo.save(user.company);
+      }
+
+      return savedUser;
     } catch (err) {
       if (err.code === '23505') {
         throw new BadRequestException('Email or phone already exists');

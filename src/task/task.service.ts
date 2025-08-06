@@ -145,13 +145,13 @@ export class TaskService {
 
       if (project.company.owner.id !== authUser.id) {
         throw new ForbiddenException(
-          `Access denied: You can only create tasks for projects in your own company. Project company ID: ${project.company.id}`,
+          `Access denied: You can only create tasks for projects in your own company.`,
         );
       }
 
       if (user.company.id !== project.company.id) {
         throw new ForbiddenException(
-          `Access denied: You can only assign tasks to employees in your own company. Employee belongs to company ID: ${user.company.id}, Project company ID: ${project.company.id}`,
+          `Access denied: You can only assign tasks to employees in your own company.`,
         );
       }
     } else if (authUser.role.name === 'Manager') {
@@ -168,13 +168,13 @@ export class TaskService {
 
       if (authUserWithCompany.company.id !== project.company.id) {
         throw new ForbiddenException(
-          `Access denied: You can only create tasks for projects in your own company. Your company ID: ${authUserWithCompany.company.id}, Project company ID: ${project.company.id}`,
+          `Access denied: You can only create tasks for projects in your own company.`,
         );
       }
 
       if (user.company.id !== authUserWithCompany.company.id) {
         throw new ForbiddenException(
-          `Access denied: You can only assign tasks to employees in your own company. Your company ID: ${authUserWithCompany.company.id}, Employee company ID: ${user.company.id}`,
+          `Access denied: You can only assign tasks to employees in your own company.`,
         );
       }
     }

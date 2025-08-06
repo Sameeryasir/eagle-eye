@@ -40,23 +40,26 @@ export class ProjectService {
     }
   }
 
-  async getProjects(authUser: AuthenticatedUser) {
-    this.checkAdmin(authUser);
-    const projects = await this.projectRepo.find({
-      where: {
-        owner: { id: authUser.id },
-      },
-    });
-    return projects;
-  }
-  async getProjectById(id:number,authUser:AuthenticatedUser){
+async getProjects(authUser: AuthenticatedUser) {
+  this.checkAdmin(authUser);
+  const projects = await this.projectRepo.find({
+    where: {
+      owner: { id: authUser.id },
+    },
+    order: {
+      id: 'DESC', // Change this to createdAt if needed
+    },
+  });
+  return projects;
+}
+
+  async getProjectById(id: number, authUser: AuthenticatedUser) {
     this.checkAdmin(authUser);
     const project = await this.projectRepo.findOne({
-        where:{id:id},
-        relations:['owner','company','company.owner']
-    })
-    return project
-
+      where: { id: id },
+      relations: ['owner', 'company', 'company.owner'],
+    });
+    return project;
   }
   async createProject(
     createProjectDto: CreateProjectDto,
@@ -69,11 +72,11 @@ export class ProjectService {
     // Fetch user and role
     const user = await this.userRepo.findOne({
       where: { id: authUser?.id },
-      relations: ['role'],
+      relations: ['role', 'company'],
     });
 
     if (!user) {
-      throw new BadRequestException('Authenticated user not found');
+      throw new BadRequestException('user not found');
     }
 
     const userRole = user.role?.name;
@@ -84,23 +87,30 @@ export class ProjectService {
       );
     }
 
-    // Fetch company
-    const company = company_id
-      ? await this.companyRepo.findOne({
-          where: { id: company_id },
-          relations: ['owner'],
-        })
-      : null;
+    let company;
+    if (userRole === 'Owner') {
+      if (!user.company) {
+        throw new BadRequestException(
+          'Owner must be associated with a company',
+        );
+      }
+      company = await this.companyRepo.findOne({
+        where: { id: user.company.id },
+        relations: ['owner'],
+      });
+    } else {
+      // For Admin, use the provided company_id
+      if (!company_id) {
+        throw new BadRequestException('Company is required for Admin');
+      }
+      company = await this.companyRepo.findOne({
+        where: { id: company_id },
+        relations: ['owner'],
+      });
+    }
 
     if (!company) {
       throw new BadRequestException('Company not found');
-    }
-
-    // Additional check: Owner can only create projects for their own company
-    if (userRole === 'Owner' && company.owner?.id !== user.id) {
-      throw new ForbiddenException(
-        'You can only create projects for your own company',
-      );
     }
 
     // Create project
@@ -116,63 +126,63 @@ export class ProjectService {
     return await this.projectRepo.save(newProject);
   }
   async updateProject(
-  id: number,
-  updateProjectDto: UpdateProjectDto,
-  authUser: AuthenticatedUser,
-) {
-  this.checkAdmin(authUser);
+    id: number,
+    updateProjectDto: UpdateProjectDto,
+    authUser: AuthenticatedUser,
+  ) {
+    this.checkAdmin(authUser);
 
-  const project = await this.projectRepo.findOne({
-    where: { id },
-    relations: ['owner', 'company', 'company.owner'],
-  });
+    const project = await this.projectRepo.findOne({
+      where: { id },
+      relations: ['owner', 'company', 'company.owner'],
+    });
 
-  if (!project) {
-    throw new NotFoundException('Project not found');
-  }
+    if (!project) {
+      throw new NotFoundException('Project not found');
+    }
 
-  const roleName = authUser.role?.name;
+    const roleName = authUser.role?.name;
 
-  // Authorization
-  if (roleName === 'Owner') {
-    if (project.company?.owner?.id !== authUser.id) {
+    // Authorization
+    if (roleName === 'Owner') {
+      if (project.company?.owner?.id !== authUser.id) {
+        throw new ForbiddenException(
+          'You can only update projects from your own company',
+        );
+      }
+    } else if (roleName !== 'Admin') {
       throw new ForbiddenException(
-        'You can only update projects from your own company',
+        'Only Admins and Owners can update projects',
       );
     }
-  } else if (roleName !== 'Admin') {
-    throw new ForbiddenException(
-      'Only Admins and Owners can update projects',
-    );
-  }
 
-  // Update common fields
-  if (updateProjectDto.name) {
-    project.name = updateProjectDto.name;
-  }
-  if (updateProjectDto.description !== undefined) {
-    project.description = updateProjectDto.description;
-  }
-  if (updateProjectDto.startDate) {
-    project.startDate = new Date(updateProjectDto.startDate);
-  }
-  if (updateProjectDto.endDate) {
-    project.endDate = new Date(updateProjectDto.endDate);
-  }
-
-  // Allow Admin to update company
-  if (roleName === 'Admin' && updateProjectDto.companyId) {
-    const newCompany = await this.companyRepo.findOne({
-      where: { id: updateProjectDto.companyId },
-    });
-    if (!newCompany) {
-      throw new BadRequestException('Invalid company ID');
+    // Update common fields
+    if (updateProjectDto.name) {
+      project.name = updateProjectDto.name;
     }
-    project.company = newCompany;
-  }
+    if (updateProjectDto.description !== undefined) {
+      project.description = updateProjectDto.description;
+    }
+    if (updateProjectDto.startDate) {
+      project.startDate = new Date(updateProjectDto.startDate);
+    }
+    if (updateProjectDto.endDate) {
+      project.endDate = new Date(updateProjectDto.endDate);
+    }
 
-  return await this.projectRepo.save(project);
-}
+    // Allow Admin to update company
+    if (roleName === 'Admin' && updateProjectDto.companyId) {
+      const newCompany = await this.companyRepo.findOne({
+        where: { id: updateProjectDto.companyId },
+      });
+      if (!newCompany) {
+        throw new BadRequestException('Invalid company ID');
+      }
+      project.company = newCompany;
+    }
+
+    return await this.projectRepo.save(project);
+  }
 
   async deleteProject(id: number, authUser: AuthenticatedUser) {
     // Fetch project with relations for permission checks
