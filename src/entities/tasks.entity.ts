@@ -20,15 +20,15 @@ export class Tasks {
   @Column({ type: 'text', nullable: true })
   description?: string;
 
-  @Column({ type: 'timestamp', nullable: true })
+  @Column({ type: 'timestamptz', nullable: true }) // stores date+time (UTC)
   startTime?: Date;
 
-  @Column({ type: 'timestamp', nullable: true })
+  @Column({ type: 'timestamptz', nullable: true }) // stores date+time (UTC)
   endTime?: Date;
 
   @ManyToOne(() => Projects, (project) => project.tasks, {
-    onDelete: 'CASCADE', 
-    nullable: true
+    onDelete: 'CASCADE',
+    nullable: true,
   })
   @JoinColumn({ name: 'project_id' })
   project: Projects;
@@ -39,6 +39,4 @@ export class Tasks {
   })
   @JoinColumn({ name: 'user_id' })
   assignedTo?: Users;
-
-
 }

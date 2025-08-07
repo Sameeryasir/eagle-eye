@@ -14,6 +14,7 @@ import { Users } from 'src/entities/users.entity';
 import { Projects } from 'src/entities/projects.entity';
 import { UpdateTaskDto } from './taskDto/update-task.dto';
 import { retry } from 'rxjs';
+import { MoreThanOrEqual,LessThanOrEqual } from 'typeorm';
 interface AuthenticatedUser {
   id: number;
   email: string;
@@ -40,30 +41,40 @@ export class TaskService {
       );
     }
   }
-  async getTaskByProjectId(projectId: number, authUser: AuthenticatedUser) {
-    this.checkAdmin(authUser);
 
-    // Check if the project exists
-    const project = await this.projectRepo.findOne({
-      where: { id: projectId },
-    });
 
-    if (!project) {
-      throw new NotFoundException('Project not found');
-    }
+async getTaskByProjectId(projectId: number, authUser: AuthenticatedUser) {
+  this.checkAdmin(authUser);
 
-    // Fetch tasks related to the project
-    const tasks = await this.taskRepo.find({
-      where: {
-        project: {
-          id: projectId,
-        },
+  // 1) Ensure project exists
+  const project = await this.projectRepo.findOne({ where: { id: projectId } });
+  if (!project) throw new NotFoundException('Project not found');
+
+  const now = new Date();
+
+  // 2) Fetch only upcoming or ongoing tasks
+  const tasks = await this.taskRepo.find({
+    where: [
+      // Tasks starting in the future
+      {
+        project: { id: projectId },
+        startTime: MoreThanOrEqual(now),
       },
-      relations: ['project', 'assignedTo'],
-    });
+      // Tasks already started but not ended
+      {
+        project: { id: projectId },
+        startTime: LessThanOrEqual(now),
+        endTime: MoreThanOrEqual(now),
+      },
+    ],
+    relations: ['project', 'assignedTo'],
+    order: { startTime: 'DESC' },
+  });
 
-    return tasks;
-  }
+  return tasks;
+}
+
+
   async getTask(authUser: AuthenticatedUser) {
     // Check if the user is an Employee
     if (authUser.role.name !== 'Employee') {
@@ -96,31 +107,34 @@ export class TaskService {
     } = CreateTaskDto;
 
     // ✅ Explicitly check for required IDs
-    if (!assignedToUserId) {
-      throw new BadRequestException('Employee is required');
-    }
+ 
 
     if (!projectId) {
       throw new BadRequestException('project is required');
     }
 
-    const user = await this.userRepo.findOne({
-      where: { id: assignedToUserId },
-      relations: ['company', 'role'],
-    });
+    let user: Users | null = null;
+    
+    // Only validate user if assignedToUserId is provided
+    if (assignedToUserId) {
+      user = await this.userRepo.findOne({
+        where: { id: assignedToUserId },
+        relations: ['company', 'role'],
+      });
 
-    if (!user) {
-      throw new NotFoundException('User not found');
-    }
+      if (!user) {
+        throw new NotFoundException('User not found');
+      }
 
-    if (user.role?.name !== 'Employee') {
-      throw new BadRequestException('Task can only be assigned to an Employee');
-    }
+      if (user.role?.name !== 'Employee') {
+        throw new BadRequestException('Task can only be assigned to an Employee');
+      }
 
-    if (!user.company?.id) {
-      throw new BadRequestException(
-        'Assigned employee must be associated with a company',
-      );
+      if (!user.company?.id) {
+        throw new BadRequestException(
+          'Assigned employee must be associated with a company',
+        );
+      }
     }
 
     const project = await this.projectRepo.findOne({
@@ -149,7 +163,7 @@ export class TaskService {
         );
       }
 
-      if (user.company.id !== project.company.id) {
+      if (user && user.company.id !== project.company.id) {
         throw new ForbiddenException(
           `Access denied: You can only assign tasks to employees in your own company.`,
         );
@@ -172,7 +186,7 @@ export class TaskService {
         );
       }
 
-      if (user.company.id !== authUserWithCompany.company.id) {
+      if (user && user.company.id !== authUserWithCompany.company.id) {
         throw new ForbiddenException(
           `Access denied: You can only assign tasks to employees in your own company.`,
         );
@@ -184,7 +198,7 @@ export class TaskService {
       description,
       startTime: startTime ? new Date(startTime) : undefined,
       endTime: endTime ? new Date(endTime) : undefined,
-      assignedTo: user,
+      assignedTo: user || undefined,
       project,
     });
 

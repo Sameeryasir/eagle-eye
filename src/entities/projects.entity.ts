@@ -23,10 +23,10 @@ export class Projects {
   @Column({ type: 'text', nullable: true })
   description: string;
 
-  @Column({ type: 'date', nullable: true })
+  @Column({ type: 'timestamptz', nullable: true }) // stores date+time (UTC)
   startDate: Date;
 
-  @Column({ type: 'date', nullable: true })
+  @Column({ type: 'timestamptz', nullable: true }) // stores date+time (UTC)
   endDate: Date;
 
   @ManyToOne(() => Users, { nullable: false, onDelete: 'SET NULL' })

@@ -7,7 +7,7 @@ import {
 } from '@nestjs/common';
 import { InjectRepository } from '@nestjs/typeorm';
 import { Projects } from 'src/entities/projects.entity';
-import { Repository } from 'typeorm';
+import { Repository, MoreThanOrEqual,LessThanOrEqual } from 'typeorm';
 import { Roles } from 'src/entities/roles.entity';
 import { CreateProjectDto } from './projectDto/create-project.dto';
 import { UpdateProjectDto } from './projectDto/update-project.dto';
@@ -40,24 +40,29 @@ export class ProjectService {
     }
   }
 
-async getProjects(authUser: AuthenticatedUser) {
-  this.checkAdmin(authUser);
-  const projects = await this.projectRepo.find({
-    where: {
-      owner: { id: authUser.id },
-    },
-    order: {
-      id: 'DESC', // Change this to createdAt if needed
-    },
-  });
-  return projects;
-}
+  async getProjects(authUser: AuthenticatedUser) {
+    this.checkAdmin(authUser);
+  
+    const projects = await this.projectRepo.find({
+      where: {
+        owner: { id: authUser.id },
+      },
+      relations: ['tasks', 'tasks.assignedTo'],
+      order: {
+        id: 'DESC', // Newest projects first
+      },
+    });
+  
+    return projects;
+  }
+  
+
 
   async getProjectById(id: number, authUser: AuthenticatedUser) {
     this.checkAdmin(authUser);
     const project = await this.projectRepo.findOne({
       where: { id: id },
-      relations: ['owner', 'company', 'company.owner'],
+      relations: ['owner', 'company', 'company.owner','tasks' ,'tasks.assignedTo'],
     });
     return project;
   }
