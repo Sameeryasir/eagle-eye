@@ -7,7 +7,6 @@ export class ProjectsDatesToTimestamptz1754603444973 implements MigrationInterfa
     await queryRunner.query(`
       ALTER TABLE "projects"
         ALTER COLUMN "startDate" TYPE TIMESTAMPTZ USING "startDate" AT TIME ZONE 'UTC',
-        ALTER COLUMN "endDate"   TYPE TIMESTAMPTZ USING "endDate"   AT TIME ZONE 'UTC';
     `);
   }
 

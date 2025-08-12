@@ -94,7 +94,7 @@ async getTaskByProjectId(projectId: number, authUser: AuthenticatedUser) {
     return tasks;
   }
 
-  async createTask(CreateTaskDto: CreateTaskDto, authUser: AuthenticatedUser) {
+ async createTask(CreateTaskDto: CreateTaskDto, authUser: AuthenticatedUser) {
     this.checkAdmin(authUser);
 
     const {
@@ -106,16 +106,48 @@ async getTaskByProjectId(projectId: number, authUser: AuthenticatedUser) {
       assignedToUserId,
     } = CreateTaskDto;
 
-    // ✅ Explicitly check for required IDs
- 
+    // Validate against past dates and time logic
+    const now = new Date();
+    if (startTime) {
+      const startDate = new Date(startTime);
+      if (startDate < now) {
+        throw new BadRequestException('Start time cannot be in the past');
+      }
+      if (endTime) {
+        const endDate = new Date(endTime);
+        if (endDate < startDate) {
+          throw new BadRequestException('End time must be after start time');
+        }
+        if (endDate < now) {
+          throw new BadRequestException('End time cannot be in the past');
+        }
+      }
+    }
 
+    // Validate required project ID
     if (!projectId) {
-      throw new BadRequestException('project is required');
+      throw new BadRequestException('Project is required');
+    }
+
+    // Check for existing task with same time range
+    if (startTime && endTime) {
+      const existingTask = await this.taskRepo.findOne({
+        where: {
+          project: { id: projectId },
+          startTime: new Date(startTime),
+          endTime: new Date(endTime),
+          title,
+        },
+      });
+
+      if (existingTask) {
+        throw new BadRequestException('A task with the same time range already exists');
+      }
     }
 
     let user: Users | null = null;
     
-    // Only validate user if assignedToUserId is provided
+    // Validate assigned user if provided
     if (assignedToUserId) {
       user = await this.userRepo.findOne({
         where: { id: assignedToUserId },
@@ -137,6 +169,7 @@ async getTaskByProjectId(projectId: number, authUser: AuthenticatedUser) {
       }
     }
 
+    // Validate project
     const project = await this.projectRepo.findOne({
       where: { id: projectId },
       relations: ['company', 'company.owner'],
@@ -152,6 +185,7 @@ async getTaskByProjectId(projectId: number, authUser: AuthenticatedUser) {
       );
     }
 
+    // Authorization checks
     if (authUser.role.name === 'Owner') {
       if (!project.company.owner?.id) {
         throw new ForbiddenException('Project company has no owner');
@@ -193,6 +227,7 @@ async getTaskByProjectId(projectId: number, authUser: AuthenticatedUser) {
       }
     }
 
+    // Create and save the task
     const newTask = this.taskRepo.create({
       title,
       description,
@@ -203,7 +238,7 @@ async getTaskByProjectId(projectId: number, authUser: AuthenticatedUser) {
     });
 
     return await this.taskRepo.save(newTask);
-  }
+}
 
   async updateTaskById(
     updateTaskDto: UpdateTaskDto,

@@ -23,11 +23,8 @@ export class Projects {
   @Column({ type: 'text', nullable: true })
   description: string;
 
-  @Column({ type: 'timestamptz', nullable: true }) // stores date+time (UTC)
+  @Column({ type: 'timestamptz', nullable: true })
   startDate: Date;
-
-  @Column({ type: 'timestamptz', nullable: true }) // stores date+time (UTC)
-  endDate: Date;
 
   @ManyToOne(() => Users, { nullable: false, onDelete: 'SET NULL' })
   @JoinColumn({ name: 'created_by_user_id' })

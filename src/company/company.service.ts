@@ -38,19 +38,32 @@ export class CompanyService {
     }
   }
   async getCompany(authUser: AuthenticatedUser) {
-    this.checkAdmin(authUser); // Ensure user is Admin/Owner/Manager
-
-    const company = await this.companyRepo.findOne({
-      where: {
-        owner: { id: authUser.id },
-      },
-    });
-
-    if (!company) {
-      throw new UnauthorizedException('No company found for this user');
+    // Only Admin can access this API
+    if (!authUser || !authUser.role || authUser.role.name !== 'Admin') {
+      throw new UnauthorizedException('Only Admin can access this API');
     }
 
-    return company;
+    const companies = await this.companyRepo.find({
+      relations: ['owner'],
+    });
+
+    const companiesWithEmployeeCount = await Promise.all(
+      companies.map(async (company) => {
+        const employeeCount = await this.userRepo.count({
+          where: {
+            company: { id: company.id },
+            role: { name: 'Employee' },
+          },
+        });
+
+        return {
+          ...company,
+          totalEmployees: employeeCount,
+        };
+      })
+    );
+
+    return companiesWithEmployeeCount;
   }
 
 async createCompany(

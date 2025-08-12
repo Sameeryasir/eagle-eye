@@ -71,7 +71,7 @@ export class ProjectService {
     authUser: AuthenticatedUser,
   ) {
     this.checkAdmin(authUser);
-    const { name, description, startDate, endDate, company_id } =
+    const { name, description, startDate, company_id } =
       createProjectDto;
 
     // Fetch user and role
@@ -118,12 +118,14 @@ export class ProjectService {
       throw new BadRequestException('Company not found');
     }
 
+    // Check if start date is already taken by another project
+ 
+
     // Create project
     const newProject = this.projectRepo.create({
       name,
       description,
       startDate: startDate ? new Date(startDate) : undefined,
-      endDate: endDate ? new Date(endDate) : undefined,
       owner: user,
       company,
     });
@@ -171,9 +173,7 @@ export class ProjectService {
     if (updateProjectDto.startDate) {
       project.startDate = new Date(updateProjectDto.startDate);
     }
-    if (updateProjectDto.endDate) {
-      project.endDate = new Date(updateProjectDto.endDate);
-    }
+
 
     // Allow Admin to update company
     if (roleName === 'Admin' && updateProjectDto.companyId) {
