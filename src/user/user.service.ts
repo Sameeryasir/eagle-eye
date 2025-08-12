@@ -76,10 +76,7 @@ async createUserWithRole(dto: CreateUserDto, authUser: AuthenticatedUser) {
     throw new BadRequestException('Role not found');
   }
 
-  // 🚫 Only Admin can create users with Owner role
-  if (authUser.role.name !== 'Admin') {
-    throw new UnauthorizedException('Only Admin can create users with Owner role');
-  }
+ 
 
   // Get the creator user
   const createdBy = await this.userRepo.findOne({ where: { id: authUser.id } });
@@ -106,18 +103,49 @@ async createUserWithRole(dto: CreateUserDto, authUser: AuthenticatedUser) {
       }
     }
 
-    // 🚫 Check if role already exists for the same company
-    const existingUserWithRole = await this.userRepo.findOne({
-      where: {
-        company: { id: company },
-        role: { id: roleId }
-      },
-      relations: ['role', 'company']
-    });
-
-    if (existingUserWithRole) {
-      throw new BadRequestException(`A user with role '${role.name}' already exists in this company`);
+    // 🚫 Admin cannot create Owner if owner already exists
+    if (authUser.role.name === 'Admin' && role.name === 'Owner') {
+      const existingOwner = await this.userRepo.findOne({
+        where: {
+          company: { id: company },
+          role: { name: 'Owner' }
+        }
+      });
+      
+      if (existingOwner) {
+        throw new BadRequestException('Admin cannot create an Owner role user when an owner already exists for this company');
+      }
     }
+
+    // 🚫 Check if Admin or Owner role already exists in the company
+    if (role.name === 'Admin' || role.name === 'Owner') {
+      const existingUserWithRole = await this.userRepo.findOne({
+        where: {
+          company: { id: company },
+          role: { name: role.name }
+        }
+      });
+      
+      if (existingUserWithRole) {
+        throw new BadRequestException(`A user with role '${role.name}' already exists in this company`);
+      }
+    }
+
+    // 🚫 Cannot create employees in companies where requesting user is not the owner
+    if (role.name === 'Employee') {
+      const companyOwner = await this.userRepo.findOne({
+        where: {
+          company: { id: company },
+          role: { name: 'Owner' }
+        }
+      });
+      
+      if (!companyOwner || companyOwner.id !== authUser.id) {
+        throw new BadRequestException('You can only create employees in companies where you are the owner');
+      }
+    }
+
+
   }
 
   // Create user

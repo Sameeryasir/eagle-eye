@@ -15,6 +15,7 @@ import { Projects } from 'src/entities/projects.entity';
 import { UpdateTaskDto } from './taskDto/update-task.dto';
 import { retry } from 'rxjs';
 import { MoreThanOrEqual,LessThanOrEqual } from 'typeorm';
+import { Companies } from 'src/entities/companies.entity';
 interface AuthenticatedUser {
   id: number;
   email: string;
@@ -26,6 +27,7 @@ export class TaskService {
     @InjectRepository(Tasks) private taskRepo: Repository<Tasks>,
     @InjectRepository(Users) private userRepo: Repository<Users>,
     @InjectRepository(Projects) private projectRepo: Repository<Projects>,
+    @InjectRepository(Companies) private companyRepo :Repository<Companies>
   ) {}
   private checkAuth(user: AuthenticatedUser) {
     if (!user || !user.id) {
@@ -93,7 +95,37 @@ async getTaskByProjectId(projectId: number, authUser: AuthenticatedUser) {
 
     return tasks;
   }
+  async getEmployeesToAssingeTask(authUser: AuthenticatedUser) {
+    this.checkAdmin(authUser);
+    
+    // Validate that authUser.id is a valid number
+    if (!authUser.id || isNaN(authUser.id)) {
+      throw new BadRequestException('Invalid user ID');
+    }
+    
+    // Find the company owned by the authenticated user
+    const company = await this.companyRepo.findOne({
+      where: {
+        owner: { id: authUser.id }
+      }
+    });
 
+    if (!company) {
+      throw new NotFoundException('Company not found for this user');
+    }
+
+    // Fetch all employees (users with Employee role) from the company
+    const employees = await this.userRepo.find({
+      where: {
+        company: { id: company.id },
+        role: { name: 'Employee' }
+      },
+      relations: ['role'],
+      select: ['id', 'first_name', 'last_name', 'email', 'phone']
+    });
+
+    return employees;
+  }
  async createTask(CreateTaskDto: CreateTaskDto, authUser: AuthenticatedUser) {
     this.checkAdmin(authUser);
 

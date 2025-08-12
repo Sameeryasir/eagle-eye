@@ -19,18 +19,26 @@ import { UpdateTaskDto } from './taskDto/update-task.dto';
 export class TaskController {
   constructor(private readonly taskService: TaskService) {}
 
-  @Get(':id')
-  @UseGuards(AuthGuard('jwt'))
-  async getTaskByProjectId(@Param('id') id: string, @Request() req) {
-    const user = req.user;
-    const tasks = await this.taskService.getTaskByProjectId(Number(id), user);
-    return tasks;
-  }
   @Get()
   @UseGuards(AuthGuard('jwt'))
   async getTask(@Request() req) {
     const user = req.user;
     const tasks = await this.taskService.getTask(user);
+    return tasks;
+  }
+  @Get('assignTo')
+  @UseGuards(AuthGuard('jwt'))
+  async getEmployeesToAssingeTask(@Request() req){
+    const user = req.user;
+    console.log(user);
+    const employees = await this.taskService.getEmployeesToAssingeTask(user);
+    return employees;
+  }
+  @Get(':id')
+  @UseGuards(AuthGuard('jwt'))
+  async getTaskByProjectId(@Param('id') id: string, @Request() req) {
+    const user = req.user;
+    const tasks = await this.taskService.getTaskByProjectId(Number(id), user);
     return tasks;
   }
   @Post('create')

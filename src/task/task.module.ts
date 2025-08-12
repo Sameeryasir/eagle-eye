@@ -5,9 +5,10 @@ import { TaskService } from './task.service';
 import { Tasks } from 'src/entities/tasks.entity';
 import { Users } from 'src/entities/users.entity';
 import { Projects } from 'src/entities/projects.entity';
+import { Companies } from 'src/entities/companies.entity';
 
 @Module({
-  imports: [TypeOrmModule.forFeature([Tasks, Users, Projects])],
+  imports: [TypeOrmModule.forFeature([Tasks, Users, Projects, Companies])],
   controllers: [TaskController],
   providers: [TaskService]
 })
