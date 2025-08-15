@@ -56,12 +56,29 @@ export class ProjectService {
           id: 'DESC', // Newest projects first
         },
       });
-    } else {
-      // For Owners and Admins, fetch projects they own
+    } else if (authUser.role.name === 'Owner') {
+      // For Owners, fetch projects from their own company
+      const ownerUser = await this.userRepo.findOne({
+        where: { id: authUser.id },
+        relations: ['company'],
+      });
+
+      if (!ownerUser?.company) {
+        throw new BadRequestException('Owner must be associated with a company');
+      }
+
       projects = await this.projectRepo.find({
         where: {
-          owner: { id: authUser.id },
+          company: { id: ownerUser.company.id },
         },
+        relations: ['tasks', 'tasks.assignedTo'],
+        order: {
+          id: 'DESC', // Newest projects first
+        },
+      });
+    } else {
+      // For Admins, fetch all projects
+      projects = await this.projectRepo.find({
         relations: ['tasks', 'tasks.assignedTo'],
         order: {
           id: 'DESC', // Newest projects first

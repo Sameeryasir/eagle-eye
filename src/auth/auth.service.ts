@@ -95,9 +95,13 @@ export class AuthService {
 
     const otp = user.otp;
     if (!otp) throw new BadRequestException('OTP record not found');
-    if (otp.isUsed) throw new BadRequestException('OTP has already been used. Please request a new one.');
+    if (otp.isUsed)
+      throw new BadRequestException(
+        'OTP has already been used. Please request a new one.',
+      );
     if (otp.code !== code) throw new BadRequestException('Invalid OTP code');
-    if (!otp.createdAt) throw new BadRequestException('OTP creation time missing');
+    if (!otp.createdAt)
+      throw new BadRequestException('OTP creation time missing');
 
     // Fix the timing calculation - use proper Date objects
     const now = new Date();
@@ -111,11 +115,13 @@ export class AuthService {
       timeDifferenceMs,
       fifteenMinutesMs,
       isExpired: timeDifferenceMs > fifteenMinutesMs,
-      minutesPassed: Math.round(timeDifferenceMs / 1000 / 60)
+      minutesPassed: Math.round(timeDifferenceMs / 1000 / 60),
     });
 
     if (timeDifferenceMs > fifteenMinutesMs) {
-      throw new BadRequestException(`OTP has expired. Time difference: ${Math.round(timeDifferenceMs / 1000 / 60)} minutes`);
+      throw new BadRequestException(
+        `OTP has expired. Time difference: ${Math.round(timeDifferenceMs / 1000 / 60)} minutes`,
+      );
     }
 
     // Mark OTP as used
