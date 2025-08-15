@@ -95,14 +95,30 @@ export class AuthService {
 
     const otp = user.otp;
     if (!otp) throw new BadRequestException('OTP record not found');
-    if (otp.isUsed) throw new BadRequestException('OTP has already been used create new one');
+    if (otp.isUsed) throw new BadRequestException('OTP has already been used. Please request a new one.');
     if (otp.code !== code) throw new BadRequestException('Invalid OTP code');
-    if (!otp.createdAt)
-      throw new BadRequestException('OTP creation time missing');
+    if (!otp.createdAt) throw new BadRequestException('OTP creation time missing');
 
-    const isExpired = Date.now() - otp.createdAt.getTime() > 15 * 60 * 1000;
-    if (isExpired) throw new BadRequestException('OTP has expired');
+    // Fix the timing calculation - use proper Date objects
+    const now = new Date();
+    const otpCreatedAt = new Date(otp.createdAt);
+    const timeDifferenceMs = now.getTime() - otpCreatedAt.getTime();
+    const fifteenMinutesMs = 15 * 60 * 1000; // 15 minutes in milliseconds
 
+    console.log('Debug OTP timing:', {
+      now: now.toISOString(),
+      otpCreatedAt: otpCreatedAt.toISOString(),
+      timeDifferenceMs,
+      fifteenMinutesMs,
+      isExpired: timeDifferenceMs > fifteenMinutesMs,
+      minutesPassed: Math.round(timeDifferenceMs / 1000 / 60)
+    });
+
+    if (timeDifferenceMs > fifteenMinutesMs) {
+      throw new BadRequestException(`OTP has expired. Time difference: ${Math.round(timeDifferenceMs / 1000 / 60)} minutes`);
+    }
+
+    // Mark OTP as used
     otp.isUsed = true;
     await this.otpRepo.save(otp);
 
