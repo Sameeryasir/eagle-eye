@@ -19,8 +19,11 @@ export class CreateProjectDto {
   @IsDateString()
   startDate?: string;
 
+  @IsOptional()
+  @IsInt()
+  company_id?: number;
 
   @IsOptional()
   @IsInt()
-  company_id ?: number;
+  assignedTo?: number;
 }

@@ -7,6 +7,7 @@ import {
   CreateDateColumn,
   UpdateDateColumn,
   OneToMany,
+  OneToOne,
 } from 'typeorm';
 import { Users } from './users.entity'; // adjust the path as needed
 import { Companies } from './companies.entity';
@@ -33,6 +34,10 @@ export class Projects {
   @ManyToOne(() => Companies, { nullable: true, onDelete: 'CASCADE' }) // 👈 company relation
   @JoinColumn({ name: 'company_id' })
   company: Companies;
+
+  @OneToOne(() => Users, { nullable: true ,onDelete: 'SET NULL'})
+  @JoinColumn({ name: 'assigned_to_user_id' })
+  assignedTo: Users;
 
   @OneToMany(() => Tasks, (task) => task.project)
   tasks: Tasks[];

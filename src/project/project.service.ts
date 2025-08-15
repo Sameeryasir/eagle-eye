@@ -43,15 +43,31 @@ export class ProjectService {
   async getProjects(authUser: AuthenticatedUser) {
     this.checkAdmin(authUser);
   
-    const projects = await this.projectRepo.find({
-      where: {
-        owner: { id: authUser.id },
-      },
-      relations: ['tasks', 'tasks.assignedTo'],
-      order: {
-        id: 'DESC', // Newest projects first
-      },
-    });
+    let projects;
+    
+    if (authUser.role.name === 'Manager') {
+      // For Managers, fetch projects where they are assigned
+      projects = await this.projectRepo.find({
+        where: {
+          assignedTo: { id: authUser.id },
+        },
+        relations: ['tasks', 'tasks.assignedTo'],
+        order: {
+          id: 'DESC', // Newest projects first
+        },
+      });
+    } else {
+      // For Owners and Admins, fetch projects they own
+      projects = await this.projectRepo.find({
+        where: {
+          owner: { id: authUser.id },
+        },
+        relations: ['tasks', 'tasks.assignedTo'],
+        order: {
+          id: 'DESC', // Newest projects first
+        },
+      });
+    }
   
     return projects;
   }

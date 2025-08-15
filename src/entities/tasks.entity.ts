@@ -3,11 +3,18 @@ import {
   PrimaryGeneratedColumn,
   Column,
   ManyToOne,
-  CreateDateColumn,
   JoinColumn,
+  CreateDateColumn,
 } from 'typeorm';
 import { Users } from './users.entity';
 import { Projects } from './projects.entity';
+
+export enum TaskPriority {
+  LOW = 'low',
+  MEDIUM = 'medium',
+  HIGH = 'high',
+  CRITICAL = 'critical',
+}
 
 @Entity()
 export class Tasks {
@@ -20,11 +27,21 @@ export class Tasks {
   @Column({ type: 'text', nullable: true })
   description?: string;
 
-  @Column({ type: 'timestamptz', nullable: true }) // stores date+time (UTC)
-  startTime?: Date;
+  @Column({ type: 'timestamptz' })
+  startTime: Date;
 
-  @Column({ type: 'timestamptz', nullable: true }) // stores date+time (UTC)
-  endTime?: Date;
+  @Column({ type: 'timestamptz' })
+  endTime: Date;
+
+  @Column({
+    type: 'enum',
+    enum: TaskPriority,
+    default: TaskPriority.MEDIUM,
+  })
+  priority: TaskPriority;
+
+  @CreateDateColumn({ type: 'timestamptz' })
+  createdAt: Date;
 
   @ManyToOne(() => Projects, (project) => project.tasks, {
     onDelete: 'CASCADE',

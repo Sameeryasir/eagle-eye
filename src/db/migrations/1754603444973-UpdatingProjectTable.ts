@@ -14,7 +14,6 @@ export class ProjectsDatesToTimestamptz1754603444973 implements MigrationInterfa
     await queryRunner.query(`
       ALTER TABLE "projects"
         ALTER COLUMN "startDate" TYPE DATE,
-        ALTER COLUMN "endDate"   TYPE DATE;
     `);
   }
 }

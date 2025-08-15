@@ -14,7 +14,7 @@ import { Users } from 'src/entities/users.entity';
 import { Projects } from 'src/entities/projects.entity';
 import { UpdateTaskDto } from './taskDto/update-task.dto';
 import { retry } from 'rxjs';
-import { MoreThanOrEqual,LessThanOrEqual } from 'typeorm';
+import { MoreThanOrEqual, LessThanOrEqual, Not } from 'typeorm';
 import { Companies } from 'src/entities/companies.entity';
 interface AuthenticatedUser {
   id: number;
@@ -78,19 +78,25 @@ async getTaskByProjectId(projectId: number, authUser: AuthenticatedUser) {
 
 
   async getTask(authUser: AuthenticatedUser) {
-    // Check if the user is an Employee
-    if (authUser.role.name !== 'Employee') {
-      throw new ForbiddenException('Only Employees can access their tasks');
-    }
-
-    // Fetch tasks assigned to the current authenticated user
+    const now = new Date();
+    
+    // Fetch only upcoming or ongoing tasks assigned to the current authenticated user
     const tasks = await this.taskRepo.find({
-      where: {
-        assignedTo: {
-          id: authUser.id,
+      where: [
+        // Tasks starting in the future
+        {
+          assignedTo: { id: authUser.id },
+          startTime: MoreThanOrEqual(now),
         },
-      },
+        // Tasks already started but not ended
+        {
+          assignedTo: { id: authUser.id },
+          startTime: LessThanOrEqual(now),
+          endTime: MoreThanOrEqual(now),
+        },
+      ],
       relations: ['project', 'assignedTo'],
+      order: { startTime: 'ASC' }, // Order by start time (earliest first)
     });
 
     return tasks;
@@ -102,13 +108,31 @@ async getTaskByProjectId(projectId: number, authUser: AuthenticatedUser) {
     if (!authUser.id || isNaN(authUser.id)) {
       throw new BadRequestException('Invalid user ID');
     }
+
+    let company;
     
-    // Find the company owned by the authenticated user
-    const company = await this.companyRepo.findOne({
-      where: {
-        owner: { id: authUser.id }
+    if (authUser.role.name === 'Owner') {
+      // Find the company owned by the authenticated user
+      company = await this.companyRepo.findOne({
+        where: {
+          owner: { id: authUser.id }
+        }
+      });
+    } else if (authUser.role.name === 'Manager') {
+      // Find the company where the manager works
+      const managerUser = await this.userRepo.findOne({
+        where: { id: authUser.id },
+        relations: ['company']
+      });
+      
+      if (!managerUser?.company) {
+        throw new NotFoundException('Manager must be associated with a company');
       }
-    });
+      
+      company = managerUser.company;
+    } else {
+      throw new ForbiddenException('Only Owners and Managers can fetch employees');
+    }
 
     if (!company) {
       throw new NotFoundException('Company not found for this user');
@@ -134,6 +158,7 @@ async getTaskByProjectId(projectId: number, authUser: AuthenticatedUser) {
       description,
       startTime,
       endTime,
+      priority,
       projectId,
       assignedToUserId,
     } = CreateTaskDto;
@@ -210,8 +235,9 @@ async getTaskByProjectId(projectId: number, authUser: AuthenticatedUser) {
     if (!project) {
       throw new NotFoundException('Project not found');
     }
-
-    if (!project.company?.id) {
+    
+    // Only check company association for non-Admin roles
+    if (authUser.role.name !== 'Admin' && !project.company?.id) {
       throw new BadRequestException(
         'Project must be associated with a company',
       );
@@ -252,10 +278,17 @@ async getTaskByProjectId(projectId: number, authUser: AuthenticatedUser) {
         );
       }
 
-      if (user && user.company.id !== authUserWithCompany.company.id) {
-        throw new ForbiddenException(
-          `Access denied: You can only assign tasks to employees in your own company.`,
-        );
+      // For Manager, validate that assigned user is an Employee from the same company
+      if (user) {
+        if (user.company.id !== authUserWithCompany.company.id) {
+          throw new ForbiddenException(
+            `Access denied: You can only assign tasks to employees in your own company.`,
+          );
+        }
+
+        if (user.role?.name !== 'Employee') {
+          throw new BadRequestException('Task can only be assigned to an Employee');
+        }
       }
     }
 
@@ -265,6 +298,7 @@ async getTaskByProjectId(projectId: number, authUser: AuthenticatedUser) {
       description,
       startTime: startTime ? new Date(startTime) : undefined,
       endTime: endTime ? new Date(endTime) : undefined,
+      priority: priority || undefined,
       assignedTo: user || undefined,
       project,
     });
@@ -335,6 +369,45 @@ async getTaskByProjectId(projectId: number, authUser: AuthenticatedUser) {
       );
     }
 
+    // Validate time logic for updates
+    const now = new Date();
+    if (updateTaskDto.startTime) {
+      const startDate = new Date(updateTaskDto.startTime);
+      if (startDate < now) {
+        throw new BadRequestException('Start time cannot be in the past');
+      }
+    }
+    if (updateTaskDto.endTime) {
+      const endDate = new Date(updateTaskDto.endTime);
+      if (endDate < now) {
+        throw new BadRequestException('End time cannot be in the past');
+      }
+    }
+    if (updateTaskDto.startTime && updateTaskDto.endTime) {
+      const startDate = new Date(updateTaskDto.startTime);
+      const endDate = new Date(updateTaskDto.endTime);
+      if (endDate < startDate) {
+        throw new BadRequestException('End time must be after start time');
+      }
+    }
+
+    // Check for existing task with same time range (excluding current task)
+    if (updateTaskDto.startTime && updateTaskDto.endTime) {
+      const existingTask = await this.taskRepo.findOne({
+        where: {
+          project: { id: task.project.id },
+          startTime: new Date(updateTaskDto.startTime),
+          endTime: new Date(updateTaskDto.endTime),
+          title: updateTaskDto.title || task.title,
+          id: Not(id), // Exclude current task from check
+        },
+      });
+
+      if (existingTask) {
+        throw new BadRequestException('A task with the same time range already exists');
+      }
+    }
+
     // Update common fields
     if (updateTaskDto.title) {
       task.title = updateTaskDto.title;
@@ -347,6 +420,9 @@ async getTaskByProjectId(projectId: number, authUser: AuthenticatedUser) {
     }
     if (updateTaskDto.endTime) {
       task.endTime = new Date(updateTaskDto.endTime);
+    }
+    if (updateTaskDto.priority !== undefined) {
+      task.priority = updateTaskDto.priority;
     }
 
     // Update project if provided
