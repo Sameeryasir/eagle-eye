@@ -6,14 +6,14 @@ export class ProjectsDatesToTimestamptz1754603444973 implements MigrationInterfa
   public async up(queryRunner: QueryRunner): Promise<void> {
     await queryRunner.query(`
       ALTER TABLE "projects"
-        ALTER COLUMN "startDate" TYPE TIMESTAMPTZ USING "startDate" AT TIME ZONE 'UTC',
+        ALTER COLUMN "startDate" TYPE TIMESTAMPTZ USING "startDate" AT TIME ZONE 'UTC'
     `);
   }
 
   public async down(queryRunner: QueryRunner): Promise<void> {
     await queryRunner.query(`
       ALTER TABLE "projects"
-        ALTER COLUMN "startDate" TYPE DATE,
+        ALTER COLUMN "startDate" TYPE DATE
     `);
   }
 }
