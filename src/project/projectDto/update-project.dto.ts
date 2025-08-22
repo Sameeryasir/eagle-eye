@@ -7,9 +7,9 @@ import {
 } from 'class-validator';
 
 export class UpdateProjectDto {
-  @IsNotEmpty()
+  @IsOptional()
   @IsString()
-  name: string;
+  name?: string;
 
   @IsOptional()
   @IsString()

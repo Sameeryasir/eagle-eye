@@ -5,10 +5,11 @@ import {
   ManyToOne,
   JoinColumn,
   CreateDateColumn,
+  OneToMany, // ← change
 } from 'typeorm';
 import { Users } from './users.entity';
 import { Projects } from './projects.entity';
-
+import { Logs } from './logs.entity';
 export enum TaskPriority {
   LOW = 'low',
   MEDIUM = 'medium',
@@ -56,4 +57,8 @@ export class Tasks {
   })
   @JoinColumn({ name: 'user_id' })
   assignedTo?: Users;
+
+  // CHANGE: a task has many logs
+  @OneToMany(() => Logs, (log) => log.task, { cascade: false })
+  logs: Logs[];
 }

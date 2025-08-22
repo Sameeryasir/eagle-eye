@@ -12,6 +12,7 @@ import { Roles } from './roles.entity';
 import { Companies } from './companies.entity';
 import { Projects } from './projects.entity';
 import { Tasks } from './tasks.entity';
+import { Logs } from './logs.entity';
 
 @Entity()
 export class Users {
@@ -57,4 +58,7 @@ export class Users {
 
   @OneToMany(() => Tasks, (task) => task.assignedTo)
   tasks: Tasks[];
+
+  @OneToMany(() => Logs, (log) => log.user)
+  logs: Logs[];
 }

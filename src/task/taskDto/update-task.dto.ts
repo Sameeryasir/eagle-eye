@@ -4,7 +4,6 @@ import { TaskPriority } from 'src/entities/tasks.entity';
 export class UpdateTaskDto {
   @IsOptional()
   @IsString()
-  @IsNotEmpty()
   title?: string;
 
   @IsOptional()
