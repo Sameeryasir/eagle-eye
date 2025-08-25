@@ -19,11 +19,11 @@ export class Images {
   @CreateDateColumn()
   createdAt: Date;
 
-  // Many-to-one relationship with Logs
+  // Many-to-one relationship with Logs (optional for direct uploads)
   @ManyToOne(() => Logs, (log) => log.images, {
-    nullable: false,
+    nullable: true, // Changed to true to allow direct uploads
     onDelete: 'CASCADE',
   })
   @JoinColumn({ name: 'log_id' })
-  log: Logs;
+  log?: Logs; // Made optional
 }

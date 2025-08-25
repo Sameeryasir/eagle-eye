@@ -12,6 +12,7 @@ import { CompanyModule } from './company/company.module';
 import { ProjectModule } from './project/project.module';
 import { TaskModule } from './task/task.module';
 import { LogModule } from './log/log.module';
+import { ImageModule } from './image/image.module';
 
 @Module({
   imports: [
@@ -35,6 +36,7 @@ import { LogModule } from './log/log.module';
     ProjectModule,
     TaskModule,
     LogModule,
+    ImageModule,
 
 
   ],

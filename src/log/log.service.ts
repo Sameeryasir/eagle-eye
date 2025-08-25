@@ -128,8 +128,10 @@ export class LogService {
             throw new NotFoundException('Log not found');
         }
         
-   
-     
+        // Update the existing log with new data from DTO
+        if (updateLogDto.Note !== undefined) {
+            log.note = updateLogDto.Note;
+        }
         
         return await this.logrepo.save(log);
     }

@@ -252,6 +252,7 @@ async createUserWithRole(dto: CreateUserDto, authUser: AuthenticatedUser) {
       throw err;
     }
   }
+
   async sendPushNotification(token: string, title: string, message: string) {
     // Validate Expo push token
     if (!token || !token.startsWith('ExponentPushToken')) {

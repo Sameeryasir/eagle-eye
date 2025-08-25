@@ -1,36 +1,10 @@
 import { Body, Controller, Post, UseGuards, ValidationPipe, Request, Get, Put, Param, ParseIntPipe, Delete, UseInterceptors, UploadedFile } from '@nestjs/common';
-import { FileInterceptor } from '@nestjs/platform-express';
 import { LogService } from './log.service';
 import { CreateLogDto } from './logDto/create-log.dto';
 import { UpdateLogDto } from './logDto/update-log.dto';
 import { AuthGuard } from '@nestjs/passport';
-import { diskStorage } from 'multer';
-import { extname } from 'path';
 
-// Multer configuration
-const multerConfig = {
-  storage: diskStorage({
-    destination: './uploads',
-    filename: (req, file, cb) => {
-      const timestamp = Date.now();
-      const randomString = Math.random().toString(36).substring(2, 15);
-      const fileExtension = extname(file.originalname);
-      const filename = `log_${timestamp}_${randomString}${fileExtension}`;
-      cb(null, filename);
-    }
-  }),
-  fileFilter: (req, file, cb) => {
-    const allowedMimeTypes = ['image/jpeg', 'image/png', 'image/gif', 'image/webp'];
-    if (allowedMimeTypes.includes(file.mimetype)) {
-      cb(null, true);
-    } else {
-      cb(new Error('Invalid file type. Only images are allowed.'), false);
-    }
-  },
-  limits: {
-    fileSize: 5 * 1024 * 1024 // 5MB limit
-  }
-};
+
 
 @Controller('log')
 export class LogController {

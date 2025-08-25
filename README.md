@@ -31,6 +31,83 @@
 $ npm install
 ```
 
+## Environment Configuration
+
+This project requires Digital Ocean Spaces configuration for image uploads. Follow these steps to set up your environment:
+
+### 1. Create Environment File
+
+Create a `.env` file in the project root with the following variables:
+
+```env
+# Digital Ocean Spaces Configuration
+SPACES_REGION=nyc3
+SPACES_ENDPOINT=https://nyc3.digitaloceanspaces.com
+SPACES_BUCKET_NAME=your-bucket-name
+SPACES_KEY=your-access-key-id
+SPACES_SECRET=your-secret-access-key
+
+# Database Configuration
+DB_HOST=localhost
+DB_PORT=5432
+DB_USERNAME=your_db_username
+DB_PASSWORD=your_db_password
+DB_DATABASE=your_database_name
+
+# JWT Secret
+JWT_SECRET=your-jwt-secret-key
+
+# Application Port
+PORT=3000
+```
+
+### 2. Get Digital Ocean Spaces Credentials
+
+1. **Create a Digital Ocean Account**: Sign up at [digitalocean.com](https://digitalocean.com)
+2. **Create a Spaces Bucket**: 
+   - Go to Spaces in your Digital Ocean dashboard
+   - Create a new Space (bucket)
+   - Note the region (e.g., nyc3, sgp1, ams3)
+3. **Generate API Keys**:
+   - Go to API → Spaces Keys
+   - Create a new Spaces key
+   - Copy the Access Key ID and Secret Access Key
+
+### 3. Update Your .env File
+
+Replace the placeholder values in your `.env` file with your actual credentials:
+
+- `SPACES_REGION`: Your bucket's region (e.g., nyc3, sgp1, ams3)
+- `SPACES_ENDPOINT`: `https://your-region.digitaloceanspaces.com`
+- `SPACES_BUCKET_NAME`: Your bucket name
+- `SPACES_KEY`: Your Access Key ID
+- `SPACES_SECRET`: Your Secret Access Key
+
+### 4. Common Digital Ocean Regions
+
+| Region | Endpoint |
+|--------|----------|
+| New York 3 | `https://nyc3.digitaloceanspaces.com` |
+| San Francisco 2 | `https://sfo2.digitaloceanspaces.com` |
+| Amsterdam 3 | `https://ams3.digitaloceanspaces.com` |
+| Singapore 1 | `https://sgp1.digitaloceanspaces.com` |
+| Frankfurt 1 | `https://fra1.digitaloceanspaces.com` |
+| London 1 | `https://lon1.digitaloceanspaces.com` |
+
+### 5. Verify Configuration
+
+After setting up your `.env` file, restart your application. You should see configuration logs like:
+
+```
+🔧 S3 Client Configuration:
+   Region: nyc3
+   Endpoint: https://nyc3.digitaloceanspaces.com
+   Access Key: SET
+   Secret Key: SET
+```
+
+If you see "NOT SET" for any values, check your `.env` file and ensure the variable names match exactly.
+
 ## Compile and run the project
 
 ```bash
