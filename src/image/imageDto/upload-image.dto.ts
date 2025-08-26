@@ -1,7 +1,14 @@
-import { IsOptional, IsNumber } from 'class-validator';
+import { IsOptional, IsString, IsNumber } from 'class-validator';
 
+/**
+ * DTO for image upload request body (for additional metadata)
+ */
 export class UploadImageDto {
   @IsOptional()
   @IsNumber()
-  logId?: number; // Optional log ID to associate the image with a specific log
+  logId?: number;
+
+  @IsOptional()
+  @IsString()
+  description?: string;
 }
