@@ -3,9 +3,10 @@ import {
   PrimaryGeneratedColumn,
   Column,
   ManyToOne,
+  ManyToMany,
   JoinColumn,
   CreateDateColumn,
-  OneToMany, // ← change
+  OneToMany,
 } from 'typeorm';
 import { Users } from './users.entity';
 import { Projects } from './projects.entity';
@@ -58,7 +59,11 @@ export class Tasks {
   @JoinColumn({ name: 'user_id' })
   assignedTo?: Users;
 
-  // CHANGE: a task has many logs
-  @OneToMany(() => Logs, (log) => log.task, { cascade: false })
-  logs: Logs[];
+  @ManyToOne(() => Logs, (log) => log.tasks, {
+    nullable: true,
+    onDelete: 'SET NULL',
+  })
+  @JoinColumn({ name: 'log_id' })
+  log: Logs | null;
+  
 }

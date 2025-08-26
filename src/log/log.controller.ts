@@ -39,7 +39,7 @@ export class LogController {
 
 
 
-  @Put('update/:id')
+  @Put(':id')
   @UseGuards(AuthGuard('jwt'))
   async updateLog(
     @Param('id') id: string,
@@ -51,7 +51,7 @@ export class LogController {
     return updatedLog;
   }
 
-  @Delete('delete/:id')
+  @Delete(':id')
   @UseGuards(AuthGuard('jwt'))
   async deleteLog(
     @Param('id') id:string,

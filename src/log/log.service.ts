@@ -1,10 +1,22 @@
+/**
+ * Log Service - Handles log operations with one-to-many relationship to tasks
+ * 
+ * CHANGES MADE:
+ * - Fixed linter errors by removing unreachable code referencing 'savedLogs'
+ * - Updated all relation references from 'task' to 'tasks' to match entity relationship
+ * - Implemented one-to-many relationship: one Log can be associated with multiple Tasks
+ * - Added clear section headers and inline comments for better code readability
+ * 
+ * RELATIONSHIP: Logs (1) -> Tasks (many)
+ * DEPENDENCIES: logs.entity.ts, tasks.entity.ts, users.entity.ts
+ */
 import { Injectable, UnauthorizedException, NotFoundException, BadRequestException } from '@nestjs/common';
 import { InjectRepository } from '@nestjs/typeorm';
 import { Logs } from 'src/entities/logs.entity';
 import { Tasks } from 'src/entities/tasks.entity';
 import { Users } from 'src/entities/users.entity';
 import { Roles } from 'src/entities/roles.entity';
-import { Repository } from 'typeorm';
+import { Repository, In } from 'typeorm';
 import { CreateLogDto } from './logDto/create-log.dto';
 import { UpdateLogDto } from './logDto/update-log.dto';
 
@@ -42,6 +54,7 @@ export class LogService {
     async createLog(createLogDto: CreateLogDto, authUser: AuthenticatedUser) {
         this.checkAdmin(authUser);
         
+        // --- Validation Step ---
         // Check if authenticated user exists in database and has correct role
         const user = await this.userrepo.findOne({ 
             where: { id: authUser.id },
@@ -54,29 +67,36 @@ export class LogService {
             throw new UnauthorizedException('User does not have required role');
         }
         
-        // Check if task exists
-        const task = await this.taskrepo.findOne({ where: { id: createLogDto.task_id } });
-        if (!task) {
-            throw new NotFoundException('Task not found');
-        }
+        // --- Task Validation Step ---
+        // Handle multiple task IDs (supports both single task_id and array of task_ids)
+        const taskIds = Array.isArray(createLogDto.task_id) ? createLogDto.task_id : [createLogDto.task_id];
         
-        // Check if log already exists for this task (unique constraint)
-        const existingLog = await this.logrepo.findOne({ 
-            where: { task: { id: createLogDto.task_id } }
+        // Check if all tasks exist in database
+        const tasks = await this.taskrepo.find({ 
+            where: { id: In(taskIds) }
         });
-        if (existingLog) {
-            throw new BadRequestException('A log already exists for this task');
+        
+        if (tasks.length !== taskIds.length) {
+            const foundTaskIds = tasks.map(task => task.id);
+            const missingTaskIds = taskIds.filter(id => !foundTaskIds.includes(id));
+            throw new NotFoundException(`Tasks not found: ${missingTaskIds.join(', ')}`);
         }
         
-        // Create log with user and task entities
-        const logData = {
+        // --- Log Creation Step ---
+        // Create a single log entry that will be associated with multiple tasks
+        // This implements the one-to-many relationship: one Log -> many Tasks
+        const log = this.logrepo.create({
             note: createLogDto.note,
             user: user,
-            task: task
-        };
+            tasks: tasks // Assign all tasks to this single log entry
+        });
         
-        const log = this.logrepo.create(logData);
-        return await this.logrepo.save(log);
+        const savedLog = await this.logrepo.save(log);
+        
+        return {
+            message: `Successfully created log with ${tasks.length} task(s)`,
+            log: savedLog
+        };
     }
 
     async getLogs(authUser: AuthenticatedUser) {
@@ -94,10 +114,10 @@ export class LogService {
             throw new UnauthorizedException('User does not have required role');
         }
         
-        // Get logs for the specific user with user and task relations
+        // Get logs for the specific user with user, tasks, and images relations
         const logs = await this.logrepo.find({
             where: { user: { id: user.id } },
-            relations: ['user', 'task'],
+            relations: ['user', 'tasks', 'images'],
             order: { createdAt: 'DESC' }
         });
         
@@ -122,7 +142,7 @@ export class LogService {
         // Check if log exists
         const log = await this.logrepo.findOne({ 
             where: { id: logId },
-            relations: ['user', 'task']
+            relations: ['user', 'tasks']
         });
         if (!log) {
             throw new NotFoundException('Log not found');
@@ -154,7 +174,7 @@ export class LogService {
         // Check if log exists
         const log = await this.logrepo.findOne({ 
             where: { id: logId },
-            relations: ['user', 'task']
+            relations: ['user', 'tasks']
         });
         if (!log) {
             throw new NotFoundException('Log not found');

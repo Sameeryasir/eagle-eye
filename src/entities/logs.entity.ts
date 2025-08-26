@@ -3,9 +3,9 @@ import {
   Entity,
   PrimaryGeneratedColumn,
   CreateDateColumn,
+  OneToMany,
   ManyToOne,
   JoinColumn,
-  OneToMany,
 } from 'typeorm';
 import { Users } from './users.entity';
 import { Tasks } from './tasks.entity';
@@ -16,14 +16,12 @@ export class Logs {
   @PrimaryGeneratedColumn()
   id: number;
 
-  // REPLACED title/description -> note
   @Column({ type: 'text', nullable: true })
   note: string | null;
 
   @CreateDateColumn()
   createdAt: Date;
 
-  // Many-to-one relationship with Users
   @ManyToOne(() => Users, (user) => user.logs, {
     nullable: false,
     onDelete: 'CASCADE',
@@ -31,15 +29,11 @@ export class Logs {
   @JoinColumn({ name: 'user_id' })
   user: Users;
 
-  // CHANGE: Logs -> Task is now ManyToOne (a task can have many logs)
-  @ManyToOne(() => Tasks, (task) => task.logs, {
-    nullable: false,
-    onDelete: 'CASCADE',
-  })
-  @JoinColumn({ name: 'task_id' })
-  task: Tasks;
+  // CHANGED: one Log -> many Tasks
+  @OneToMany(() => Tasks, (task) => task.log)
+  tasks: Tasks[];
 
-  // One-to-many relationship with Images (a log can have many images)
+  // unchanged: one Log -> many Images
   @OneToMany(() => Images, (image) => image.log, { cascade: true })
   images: Images[];
 }

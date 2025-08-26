@@ -1,11 +1,13 @@
-import { IsString, IsOptional, IsNotEmpty, IsNumber } from 'class-validator';
+import { IsString, IsOptional, IsNotEmpty, IsNumber, IsArray } from 'class-validator';
+import { Transform } from 'class-transformer';
 
 export class CreateLogDto {
   @IsString()
   @IsOptional()
   note?: string;
 
-  @IsNumber()
+  @Transform(({ value }) => Array.isArray(value) ? value : [value])
+  @IsNumber({}, { each: true })
   @IsNotEmpty()
-  task_id: number;
+  task_id: number | number[];
 }
