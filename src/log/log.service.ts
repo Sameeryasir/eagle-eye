@@ -82,6 +82,23 @@ export class LogService {
             throw new NotFoundException(`Tasks not found: ${missingTaskIds.join(', ')}`);
         }
         
+        // --- Duplicate Log Check Step ---
+        // Check if logs already exist for any of the tasks
+        const existingLogs = await this.logrepo.find({
+            where: { 
+                user: { id: user.id },
+                tasks: { id: In(taskIds) }
+            },
+            relations: ['tasks']
+        });
+        
+        if (existingLogs.length > 0) {
+            // Find which tasks already have logs
+            const tasksWithLogs = existingLogs.flatMap(log => log.tasks.map(task => task.id));
+            const duplicateTaskIds = taskIds.filter(id => tasksWithLogs.includes(id));
+            throw new BadRequestException(`Logs already exist for tasks: ${duplicateTaskIds.join(', ')}. Cannot create duplicate logs.`);
+        }
+        
         // --- Log Creation Step ---
         // Create a single log entry that will be associated with multiple tasks
         // This implements the one-to-many relationship: one Log -> many Tasks
@@ -117,7 +134,7 @@ export class LogService {
         // Get logs for the specific user with user, tasks, and images relations
         const logs = await this.logrepo.find({
             where: { user: { id: user.id } },
-            relations: ['user', 'tasks', 'images'],
+            relations: ['user', 'tasks', 'tasks.project', 'tasks.project.tasks', 'tasks.project.tasks.assignedTo', 'tasks.project.tasks.log', 'tasks.project.tasks.log.images', 'images'],
             order: { createdAt: 'DESC' }
         });
         
@@ -149,9 +166,11 @@ export class LogService {
         }
         
         // Update the existing log with new data from DTO
-        if (updateLogDto.Note !== undefined) {
-            log.note = updateLogDto.Note;
+        if (updateLogDto.note) {
+            log.note = updateLogDto.note;
         }
+        else {
+            throw new BadRequestException('Enter the Log to update');}
         
         return await this.logrepo.save(log);
     }

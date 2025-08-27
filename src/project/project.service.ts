@@ -33,7 +33,7 @@ export class ProjectService {
 
   private checkAdmin(user: AuthenticatedUser) {
     this.checkAuth(user);
-    if (!user.role || !['Admin', 'Owner', 'Manager'].includes(user.role.name)) {
+    if (!user.role || !['Admin', 'Owner', 'Manager', 'Employee'].includes(user.role.name)) {
       throw new UnauthorizedException(
         'you are unauthorized to perform this action',
       );
@@ -51,7 +51,7 @@ export class ProjectService {
         where: {
           assignedTo: { id: authUser.id },
         },
-        relations: ['tasks', 'tasks.assignedTo'],
+        relations: ['tasks', 'tasks.assignedTo', 'tasks.log', 'tasks.log.images'],
         order: {
           id: 'DESC', // Newest projects first
         },
@@ -72,6 +72,19 @@ export class ProjectService {
           company: { id: ownerUser.company.id },
         },
         relations: ['tasks', 'tasks.assignedTo'],
+        order: {
+          id: 'DESC', // Newest projects first
+        },
+      });
+    } else if (authUser.role.name === 'Employee') {
+      // For Employees, fetch projects that have tasks assigned to them
+      projects = await this.projectRepo.find({
+        where: {
+          tasks: {
+            assignedTo: { id: authUser.id },
+          },
+        },
+        relations: ['tasks', 'tasks.assignedTo', 'tasks.log', 'tasks.log.images'],
         order: {
           id: 'DESC', // Newest projects first
         },
