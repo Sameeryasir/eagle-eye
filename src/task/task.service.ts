@@ -44,6 +44,16 @@ export class TaskService {
     }
   }
 
+  // --- Role Validation for Manager and Employee Access ---
+  private checkManagerAndEmployee(user: AuthenticatedUser) {
+    this.checkAuth(user);
+    if (!user.role || !['Manager', 'Employee'].includes(user.role.name)) {
+      throw new UnauthorizedException(
+        'Only Manager and Employee roles can access this feature',
+      );
+    }
+  }
+
 
 async getTaskByProjectId(projectId: number, authUser: AuthenticatedUser) {
   this.checkAdmin(authUser);
@@ -101,6 +111,29 @@ async getTaskByProjectId(projectId: number, authUser: AuthenticatedUser) {
 
     return tasks;
   }
+
+  async getTodaysTask(authUser: AuthenticatedUser) {
+    // --- Role Validation: Only Manager and Employee can access ---
+    if (authUser.role.name !== 'Manager' && authUser.role.name !== 'Employee') {
+      throw new UnauthorizedException('Only Manager and Employee roles can access this feature');
+    }
+    
+    const now = new Date();
+    const today = new Date(now.getFullYear(), now.getMonth(), now.getDate()); // Start of today
+    const tomorrow = new Date(today.getTime() + 24 * 60 * 60 * 1000); // Start of tomorrow
+    
+    // Fetch tasks created today (current date) assigned to the authenticated user
+    const tasks = await this.taskRepo.find({
+      where: {
+        assignedTo: { id: authUser.id },
+        createdAt: MoreThanOrEqual(today),
+      },
+      relations: ['project', 'assignedTo'],
+      order: { createdAt: 'DESC' }, // Order by creation time (newest first)
+    });
+
+    return tasks;
+  }
   async getEmployeesToAssingeTask(authUser: AuthenticatedUser) {
     this.checkAdmin(authUser);
     
@@ -138,15 +171,36 @@ async getTaskByProjectId(projectId: number, authUser: AuthenticatedUser) {
       throw new NotFoundException('Company not found for this user');
     }
 
-    // Fetch all employees (users with Employee role) from the company
-    const employees = await this.userRepo.find({
-      where: {
-        company: { id: company.id },
-        role: { name: 'Employee' }
-      },
-      relations: ['role'],
-      select: ['id', 'first_name', 'last_name', 'email', 'phone']
-    });
+    // Fetch users based on role permissions
+    let employees;
+    
+    if (authUser.role.name === 'Manager') {
+      // Managers can only see Employees in the dropdown
+      employees = await this.userRepo.find({
+        where: {
+          company: { id: company.id },
+          role: { name: 'Employee' }
+        },
+        relations: ['role'],
+        select: ['id', 'first_name', 'last_name', 'email', 'phone']
+      });
+    } else if (authUser.role.name === 'Owner') {
+      // Owners can see both Employees and Managers in the dropdown
+      employees = await this.userRepo.find({
+        where: [
+          {
+            company: { id: company.id },
+            role: { name: 'Employee' }
+          },
+          {
+            company: { id: company.id },
+            role: { name: 'Manager' }
+          }
+        ],
+        relations: ['role'],
+        select: ['id', 'first_name', 'last_name', 'email', 'phone']
+      });
+    }
 
     return employees;
   }
@@ -215,8 +269,8 @@ async getTaskByProjectId(projectId: number, authUser: AuthenticatedUser) {
         throw new NotFoundException('User not found');
       }
 
-      if (user.role?.name !== 'Employee') {
-        throw new BadRequestException('Task can only be assigned to an Employee');
+      if (!['Employee', 'Manager'].includes(user.role?.name)) {
+        throw new BadRequestException('Task can only be assigned to an Employee or Manager');
       }
 
       if (!user.company?.id) {
@@ -286,8 +340,8 @@ async getTaskByProjectId(projectId: number, authUser: AuthenticatedUser) {
           );
         }
 
-        if (user.role?.name !== 'Employee') {
-          throw new BadRequestException('Task can only be assigned to an Employee');
+        if (!['Employee', 'Manager'].includes(user.role?.name)) {
+          throw new BadRequestException('Task can only be assigned to an Employee or Manager');
         }
       }
     }
@@ -491,9 +545,9 @@ async getTaskByProjectId(projectId: number, authUser: AuthenticatedUser) {
         throw new BadRequestException('Invalid assigned user ID');
       }
 
-      if (newAssignedUser.role?.name !== 'Employee') {
+      if (newAssignedUser.role?.name !== 'Employee' && newAssignedUser.role?.name !== 'Manager') {
         throw new BadRequestException(
-          'Task can only be assigned to an Employee',
+          'Task can only be assigned to an Employee or Manager',
         );
       }
 

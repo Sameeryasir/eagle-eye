@@ -34,6 +34,14 @@ export class TaskController {
     const employees = await this.taskService.getEmployeesToAssingeTask(user);
     return employees;
   }
+
+  @Get('todays')
+  @UseGuards(AuthGuard('jwt'))
+  async getTodaysTask(@Request() req) {
+    const user = req.user;
+    const tasks = await this.taskService.getTodaysTask(user);
+    return tasks;
+  }
   @Get(':id')
   @UseGuards(AuthGuard('jwt'))
   async getTaskByProjectId(@Param('id') id: string, @Request() req) {

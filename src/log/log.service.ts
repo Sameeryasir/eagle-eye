@@ -1,15 +1,4 @@
-/**
- * Log Service - Handles log operations with one-to-many relationship to tasks
- * 
- * CHANGES MADE:
- * - Fixed linter errors by removing unreachable code referencing 'savedLogs'
- * - Updated all relation references from 'task' to 'tasks' to match entity relationship
- * - Implemented one-to-many relationship: one Log can be associated with multiple Tasks
- * - Added clear section headers and inline comments for better code readability
- * 
- * RELATIONSHIP: Logs (1) -> Tasks (many)
- * DEPENDENCIES: logs.entity.ts, tasks.entity.ts, users.entity.ts
- */
+ 
 import { Injectable, UnauthorizedException, NotFoundException, BadRequestException } from '@nestjs/common';
 import { InjectRepository } from '@nestjs/typeorm';
 import { Logs } from 'src/entities/logs.entity';
@@ -142,8 +131,7 @@ export class LogService {
     }
 
     async updateLog(logId: number, updateLogDto: UpdateLogDto, authUser: AuthenticatedUser) {
-        this.checkAdmin(authUser);
-        
+        // --- Role Validation: Employee, Manager, and Owner can update logs ---
         // Check if authenticated user exists in database and has correct role
         const user = await this.userrepo.findOne({ 
             where: { id: authUser.id },
@@ -152,7 +140,7 @@ export class LogService {
         if (!user) {
             throw new NotFoundException('User not found');
         }
-        if (!user.role || !['Employee', 'Manager'].includes(user.role.name)) {
+        if (!user.role || !['Employee', 'Manager','Owner'].includes(user.role.name)) {
             throw new UnauthorizedException('User does not have required role');
         }
         
@@ -176,9 +164,7 @@ export class LogService {
     }
 
     async deleteLog(logId: number, authUser: AuthenticatedUser) {
-        this.checkAdmin(authUser);
         
-        // Check if authenticated user exists in database and has correct role
         const user = await this.userrepo.findOne({ 
             where: { id: authUser.id },
             relations: ['role']
@@ -186,7 +172,7 @@ export class LogService {
         if (!user) {
             throw new NotFoundException('User not found');
         }
-        if (!user.role || !['Employee', 'Manager'].includes(user.role.name)) {
+        if (!user.role || !['Employee', 'Manager','Owner'].includes(user.role.name)) {
             throw new UnauthorizedException('User does not have required role');
         }
         

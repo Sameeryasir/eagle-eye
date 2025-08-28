@@ -71,7 +71,7 @@ export class ProjectService {
         where: {
           company: { id: ownerUser.company.id },
         },
-        relations: ['tasks', 'tasks.assignedTo'],
+        relations: ['tasks', 'tasks.assignedTo', 'tasks.log', 'tasks.log.images'],
         order: {
           id: 'DESC', // Newest projects first
         },
@@ -108,7 +108,7 @@ export class ProjectService {
     this.checkAdmin(authUser);
     const project = await this.projectRepo.findOne({
       where: { id: id },
-      relations: ['owner', 'company', 'company.owner','tasks' ,'tasks.assignedTo'],
+      relations: ['owner', 'company', 'company.owner','tasks' ,'tasks.assignedTo', 'tasks.log', 'tasks.log.images'],
     });
     return project;
   }
