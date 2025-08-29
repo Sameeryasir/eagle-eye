@@ -79,7 +79,7 @@ async getTaskByProjectId(projectId: number, authUser: AuthenticatedUser) {
         endTime: MoreThanOrEqual(now),
       },
     ],
-    relations: ['project', 'assignedTo'],
+    relations: ['project', 'assignedTo', 'log', 'log.images'],
     order: { startTime: 'DESC' },
   });
 
@@ -128,7 +128,7 @@ async getTaskByProjectId(projectId: number, authUser: AuthenticatedUser) {
         assignedTo: { id: authUser.id },
         createdAt: MoreThanOrEqual(today),
       },
-      relations: ['project', 'assignedTo'],
+      relations: ['project', 'assignedTo', 'log', 'log.images'],
       order: { createdAt: 'DESC' }, // Order by creation time (newest first)
     });
 

@@ -18,6 +18,17 @@ export class LogController {
     return logs;
   }
 
+  @Get(':id')
+  @UseGuards(AuthGuard('jwt'))
+  async getLogById(
+    @Param('id', ParseIntPipe) id: number,
+    @Request() req
+  ) {
+    const user = req.user;
+    const log = await this.logService.getLogById(id, user);
+    return log;
+  }
+
   @Post('create')
   @UseGuards(AuthGuard('jwt'))
   async createLog(

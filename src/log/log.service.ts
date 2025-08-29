@@ -130,6 +130,24 @@ export class LogService {
         return logs;
     }
 
+    async getLogById(id: number, authUser: AuthenticatedUser) {
+        this.checkAuth(authUser);
+        
+        // Get log by ID with all relations
+        const log = await this.logrepo.findOne({
+            where: { 
+                id: id
+            },
+            relations: ['user', 'tasks', 'tasks.project', 'tasks.project.tasks', 'tasks.project.tasks.assignedTo', 'tasks.project.tasks.log', 'tasks.project.tasks.log.images', 'images'],
+        });
+        
+        if (!log) {
+            throw new NotFoundException('Log not found');
+        }
+        
+        return log;
+    }
+
     async updateLog(logId: number, updateLogDto: UpdateLogDto, authUser: AuthenticatedUser) {
         // --- Role Validation: Employee, Manager, and Owner can update logs ---
         // Check if authenticated user exists in database and has correct role
