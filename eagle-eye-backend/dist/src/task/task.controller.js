@@ -16,6 +16,7 @@ exports.TaskController = void 0;
 const common_1 = require("@nestjs/common");
 const task_service_1 = require("./task.service");
 const create_task_dto_1 = require("./taskDto/create-task.dto");
+const task_filter_dto_1 = require("./taskDto/task-filter.dto");
 const passport_1 = require("@nestjs/passport");
 const update_task_dto_1 = require("./taskDto/update-task.dto");
 let TaskController = class TaskController {
@@ -45,7 +46,16 @@ let TaskController = class TaskController {
     }
     async getTaskByProjectId(id, req) {
         const user = req.user;
-        const tasks = await this.taskService.getTaskByProjectId(Number(id), user);
+        const projectId = Number(id);
+        if (Number.isNaN(projectId)) {
+            throw new common_1.BadRequestException('Invalid project id');
+        }
+        const tasks = await this.taskService.getTaskByProjectId(projectId, user);
+        return tasks;
+    }
+    async filterTasks(body, req) {
+        const user = req.user;
+        const tasks = await this.taskService.filterTasks(body, user);
         return tasks;
     }
     async createTask(createTaskDto, req) {
@@ -58,10 +68,13 @@ let TaskController = class TaskController {
         const task = await this.taskService.updateTaskById(updateTaskDto, user, Number(id));
         return task;
     }
-    async assignTask(id, body, req) {
+    async assignTaskToUser(id, body, req) {
+        if (!body || typeof body.assignedToUserId !== 'number') {
+            throw new common_1.BadRequestException('assignedToUserId (number) is required');
+        }
         const user = req.user;
-        const result = await this.taskService.assignTaskToUser(Number(id), Number(body.userId), user);
-        return result;
+        const task = await this.taskService.assignTaskToUser(Number(id), body.assignedToUserId, user);
+        return task;
     }
     async deleteTask(id, req) {
         const user = req.user;
@@ -113,6 +126,15 @@ __decorate([
     __metadata("design:returntype", Promise)
 ], TaskController.prototype, "getTaskByProjectId", null);
 __decorate([
+    (0, common_1.Post)('filter'),
+    (0, common_1.UseGuards)((0, passport_1.AuthGuard)('jwt')),
+    __param(0, (0, common_1.Body)(common_1.ValidationPipe)),
+    __param(1, (0, common_1.Request)()),
+    __metadata("design:type", Function),
+    __metadata("design:paramtypes", [task_filter_dto_1.TaskFilterDto, Object]),
+    __metadata("design:returntype", Promise)
+], TaskController.prototype, "filterTasks", null);
+__decorate([
     (0, common_1.Post)('create'),
     (0, common_1.UseGuards)((0, passport_1.AuthGuard)('jwt')),
     __param(0, (0, common_1.Body)(common_1.ValidationPipe)),
@@ -132,7 +154,7 @@ __decorate([
     __metadata("design:returntype", Promise)
 ], TaskController.prototype, "updateTask", null);
 __decorate([
-    (0, common_1.Put)(':id/assign'),
+    (0, common_1.Post)('assign/:id'),
     (0, common_1.UseGuards)((0, passport_1.AuthGuard)('jwt')),
     __param(0, (0, common_1.Param)('id')),
     __param(1, (0, common_1.Body)(common_1.ValidationPipe)),
@@ -140,7 +162,7 @@ __decorate([
     __metadata("design:type", Function),
     __metadata("design:paramtypes", [String, Object, Object]),
     __metadata("design:returntype", Promise)
-], TaskController.prototype, "assignTask", null);
+], TaskController.prototype, "assignTaskToUser", null);
 __decorate([
     (0, common_1.Delete)(':id'),
     (0, common_1.UseGuards)((0, passport_1.AuthGuard)('jwt')),

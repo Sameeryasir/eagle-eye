@@ -6,6 +6,7 @@ import { Users } from 'src/entities/users.entity';
 import { Projects } from 'src/entities/projects.entity';
 import { UpdateTaskDto } from './taskDto/update-task.dto';
 import { Companies } from 'src/entities/companies.entity';
+import { TaskFilterDto } from './taskDto/task-filter.dto';
 interface AuthenticatedUser {
     id: number;
     email: string;
@@ -29,5 +30,6 @@ export declare class TaskService {
     deleteTask(id: number, authUser: AuthenticatedUser): Promise<Tasks>;
     assignTaskToUser(taskId: number, assignedToUserId: number, authUser: AuthenticatedUser): Promise<Tasks>;
     getTaskById(id: number, authUser: AuthenticatedUser): Promise<Tasks>;
+    filterTasks(filter: TaskFilterDto, authUser: AuthenticatedUser): Promise<Tasks[]>;
 }
 export {};

@@ -12,48 +12,36 @@ Object.defineProperty(exports, "__esModule", { value: true });
 exports.TaskFilterDto = void 0;
 const class_validator_1 = require("class-validator");
 class TaskFilterDto {
-    createdFrom;
-    createdTo;
-    startFrom;
-    startTo;
-    endFrom;
-    endTo;
-    upcoming;
+    projectId;
+    sortBy;
+    assignedTo;
+    email;
+    unassigned;
 }
 exports.TaskFilterDto = TaskFilterDto;
 __decorate([
-    (0, class_validator_1.IsOptional)(),
-    (0, class_validator_1.IsDateString)(),
-    __metadata("design:type", String)
-], TaskFilterDto.prototype, "createdFrom", void 0);
+    (0, class_validator_1.IsNumber)(),
+    (0, class_validator_1.IsNotEmpty)(),
+    __metadata("design:type", Number)
+], TaskFilterDto.prototype, "projectId", void 0);
 __decorate([
     (0, class_validator_1.IsOptional)(),
-    (0, class_validator_1.IsDateString)(),
+    (0, class_validator_1.IsIn)(['createdAt', 'startTime', 'endTime']),
     __metadata("design:type", String)
-], TaskFilterDto.prototype, "createdTo", void 0);
+], TaskFilterDto.prototype, "sortBy", void 0);
 __decorate([
     (0, class_validator_1.IsOptional)(),
-    (0, class_validator_1.IsDateString)(),
+    (0, class_validator_1.IsIn)(['me']),
     __metadata("design:type", String)
-], TaskFilterDto.prototype, "startFrom", void 0);
+], TaskFilterDto.prototype, "assignedTo", void 0);
 __decorate([
     (0, class_validator_1.IsOptional)(),
-    (0, class_validator_1.IsDateString)(),
+    (0, class_validator_1.IsEmail)({}, { message: 'Invalid email format' }),
     __metadata("design:type", String)
-], TaskFilterDto.prototype, "startTo", void 0);
+], TaskFilterDto.prototype, "email", void 0);
 __decorate([
     (0, class_validator_1.IsOptional)(),
-    (0, class_validator_1.IsDateString)(),
-    __metadata("design:type", String)
-], TaskFilterDto.prototype, "endFrom", void 0);
-__decorate([
-    (0, class_validator_1.IsOptional)(),
-    (0, class_validator_1.IsDateString)(),
-    __metadata("design:type", String)
-], TaskFilterDto.prototype, "endTo", void 0);
-__decorate([
-    (0, class_validator_1.IsOptional)(),
-    (0, class_validator_1.IsBooleanString)(),
-    __metadata("design:type", String)
-], TaskFilterDto.prototype, "upcoming", void 0);
+    (0, class_validator_1.IsBoolean)(),
+    __metadata("design:type", Boolean)
+], TaskFilterDto.prototype, "unassigned", void 0);
 //# sourceMappingURL=task-filter.dto.js.map

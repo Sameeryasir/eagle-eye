@@ -9,9 +9,11 @@ import {
   Request,
   UseGuards,
   ValidationPipe,
+  BadRequestException,
 } from '@nestjs/common';
 import { TaskService } from './task.service';
 import { CreateTaskDto } from './taskDto/create-task.dto';
+import { TaskFilterDto } from './taskDto/task-filter.dto';
 import { AuthGuard } from '@nestjs/passport';
 import { UpdateTaskDto } from './taskDto/update-task.dto';
 
@@ -54,7 +56,23 @@ export class TaskController {
   @UseGuards(AuthGuard('jwt'))
   async getTaskByProjectId(@Param('id') id: string, @Request() req) {
     const user = req.user;
-    const tasks = await this.taskService.getTaskByProjectId(Number(id), user);
+    const projectId = Number(id);
+    if (Number.isNaN(projectId)) {
+      throw new BadRequestException('Invalid project id');
+    }
+    const tasks = await this.taskService.getTaskByProjectId(projectId, user);
+    return tasks;
+  }
+  
+  // Sort tasks by createdAt or startTime (limited fields)
+  @Post('filter')
+  @UseGuards(AuthGuard('jwt'))
+  async filterTasks(
+    @Body(ValidationPipe) body: TaskFilterDto,
+    @Request() req,
+  ) {
+    const user = req.user;
+    const tasks = await this.taskService.filterTasks(body, user);
     return tasks;
   }
   @Post('create')
@@ -83,20 +101,33 @@ export class TaskController {
     );
     return task;
   }
-  @Put(':id/assign')
+
+  // --- Assign Task to User ---
+  // Change Summary (MCP Context 7):
+  // - What: Added route to assign a task to a user using task id from params and assignedToUserId from body.
+  // - Why: To expose service `assignTaskToUser` via controller as requested.
+  // - Dependencies: Uses TaskService.assignTaskToUser.
+  @Post('assign/:id')
   @UseGuards(AuthGuard('jwt'))
-  async assignTask(
+  async assignTaskToUser(
     @Param('id') id: string,
-    @Body(ValidationPipe) body: { userId: number },
+    @Body(ValidationPipe) body: { assignedToUserId?: number },
     @Request() req,
   ) {
+    // --- Validation Step ---
+    if (!body || typeof body.assignedToUserId !== 'number') {
+      throw new BadRequestException('assignedToUserId (number) is required');
+    }
+
+    // --- Business Rule ---
+    // Only Admin/Owner/Manager can assign; assignee must be Employee or Manager (enforced in service)
     const user = req.user;
-    const result = await this.taskService.assignTaskToUser(
+    const task = await this.taskService.assignTaskToUser(
       Number(id),
-      Number(body.userId),
+      body.assignedToUserId,
       user,
     );
-    return result;
+    return task;
   }
   @Delete(':id')
   @UseGuards(AuthGuard('jwt'))

@@ -14,8 +14,9 @@ import { Users } from 'src/entities/users.entity';
 import { Projects } from 'src/entities/projects.entity';
 import { UpdateTaskDto } from './taskDto/update-task.dto';
 import { retry } from 'rxjs';
-import { MoreThanOrEqual, LessThanOrEqual, Not } from 'typeorm';
+import { MoreThanOrEqual, LessThanOrEqual, Not, IsNull, Between } from 'typeorm';
 import { Companies } from 'src/entities/companies.entity';
+import { TaskFilterDto } from './taskDto/task-filter.dto';
 interface AuthenticatedUser {
   id: number;
   email: string;
@@ -56,28 +57,32 @@ export class TaskService {
 
 
 async getTaskByProjectId(projectId: number, authUser: AuthenticatedUser) {
-  /*
-    Change Summary (MCP Context 7):
-    - What: Restrict endpoint to Manager role and return only tasks in the specified project assigned to that Manager.
-    - Why: API is Manager-specific; ensures Managers only see their own assigned tasks within the project.
-    - Related: Uses `Tasks.assignedTo` and `Tasks.project` relations.
-  */
+
 
   // --- Authentication Step ---
   this.checkAuth(authUser);
 
   // --- Authorization Step ---
-  if (authUser.role?.name !== 'Manager') {
-    throw new UnauthorizedException('Only Manager role can access this feature');
+  const roleName = authUser.role?.name;
+  if (!roleName || !['Manager', 'Employee', 'Owner'].includes(roleName)) {
+    throw new UnauthorizedException('Only Manager, Owner, and Employee roles can access this feature');
   }
 
   // --- Validation Step ---
-  const project = await this.projectRepo.findOne({ where: { id: projectId } });
+  // Input validation to avoid invalid integer usage downstream
+  if (projectId === null || projectId === undefined || Number.isNaN(Number(projectId))) {
+    throw new BadRequestException('Invalid project id');
+  }
+  const project = await this.projectRepo.findOne({ where: { id: Number(projectId) } });
   if (!project) throw new NotFoundException('Project not found');
 
   // --- Data Fetch (Business Rule) ---
+  // Manager/Owner: fetch all tasks for the project; Employee: only assigned tasks in the project
+  const isEmployee = roleName === 'Employee';
   const tasks = await this.taskRepo.find({
-    where: { project: { id: projectId }, assignedTo: { id: authUser.id } },
+    where: isEmployee
+      ? { project: { id: projectId }, assignedTo: { id: authUser.id } }
+      : { project: { id: projectId } },
     relations: ['project', 'assignedTo', 'log', 'log.images'],
     order: { id: 'DESC' },
   });
@@ -87,8 +92,6 @@ async getTaskByProjectId(projectId: number, authUser: AuthenticatedUser) {
 
 
   async getTask(authUser: AuthenticatedUser) {
-    const now = new Date();
-    
     // Fetch only upcoming or ongoing tasks assigned to the current authenticated user
     const tasks = await this.taskRepo.find({
       where: [
@@ -210,6 +213,11 @@ async getTaskByProjectId(projectId: number, authUser: AuthenticatedUser) {
       projectId,
       assignedToUserId,
     } = CreateTaskDto;
+
+    // --- Required Field Validation ---
+    if (!startTime) {
+      throw new BadRequestException('Start time is required');
+    }
 
     // --- Time Validation (Draft-friendly) ---
     // If frontend supplies minStartTime (captured when draft opened), ensure startTime >= minStartTime.
@@ -345,7 +353,7 @@ async getTaskByProjectId(projectId: number, authUser: AuthenticatedUser) {
     const newTask = this.taskRepo.create({
       title,
       description,
-      startTime: startTime ? new Date(startTime) : undefined,
+      startTime: new Date(startTime),
       endTime: endTime ? new Date(endTime) : undefined,
       priority: priority || undefined,
       assignedTo: user || undefined,
@@ -647,5 +655,55 @@ async getTaskByProjectId(projectId: number, authUser: AuthenticatedUser) {
     }
 
     return task;
+  }
+
+ 
+  async filterTasks(filter: TaskFilterDto, authUser: AuthenticatedUser) {
+    this.checkAuth(authUser);
+
+    const sortBy = filter.sortBy || 'createdAt';
+    const sortOrder: 'ASC' | 'DESC' = 'DESC';
+
+  
+    const isUpcomingSort = sortBy === 'startTime';
+    const isUpcomingEnd = sortBy === 'endTime';
+    const now = new Date();
+    // Define today's bounds for endTime filtering (tasks ending today)
+    const startOfToday = new Date();
+    startOfToday.setHours(0, 0, 0, 0);
+    const endOfToday = new Date();
+    endOfToday.setHours(23, 59, 59, 999);
+
+
+    const where: any = { project: { id: filter.projectId } };
+    if (filter.unassigned === true) {
+      // When client passes unassigned=true, return only tasks without an assignee
+      where.assignedTo = IsNull();
+    } else if (filter.assignedTo === 'me') {
+      // When client passes 'me', return only tasks assigned to the authenticated user
+      where.assignedTo = { id: authUser.id };
+    } else if (filter.email) {
+      // Filter by assignee email when provided
+      where.assignedTo = { email: filter.email };
+    }
+    if (isUpcomingSort) {
+      // Only include tasks that start now or later to reflect "upcoming"
+      where.startTime = MoreThanOrEqual(now);
+    } else if (isUpcomingEnd) {
+      // When user selects endTime, show tasks ending today only
+      where.endTime = Between(startOfToday, endOfToday);
+    }
+
+    const tasks = await this.taskRepo.find({
+      where,
+      relations: ['project', 'assignedTo', 'log', 'log.images'],
+      order: isUpcomingSort
+        ? { startTime: 'ASC' }
+        : isUpcomingEnd
+        ? { endTime: 'ASC' }
+        : { [sortBy]: sortOrder },
+    });
+
+    return tasks;
   }
 }

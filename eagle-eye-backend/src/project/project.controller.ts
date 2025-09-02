@@ -33,6 +33,15 @@ export class ProjectController {
     const project = await this.projectService.getProjectById(Number(id),user);
     return project;
   }
+
+  // --- Manager-only: Tasks assigned to the authenticated Manager for a project ---
+  @Get('manager-tasks/:id')
+  @UseGuards(AuthGuard('jwt'))
+  async getManagerAssignedTasksByProject(@Param('id') id: string, @Request() req) {
+    const user = req.user;
+    const projectId = Number(id);
+    return await this.projectService.getManagerAssignedTasksByProject(projectId, user);
+  }
   @Post('create')
   @UseGuards(AuthGuard('jwt'))
   async createProject(

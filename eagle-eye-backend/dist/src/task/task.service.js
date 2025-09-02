@@ -51,21 +51,27 @@ let TaskService = class TaskService {
     }
     async getTaskByProjectId(projectId, authUser) {
         this.checkAuth(authUser);
-        if (authUser.role?.name !== 'Manager') {
-            throw new common_1.UnauthorizedException('Only Manager role can access this feature');
+        const roleName = authUser.role?.name;
+        if (!roleName || !['Manager', 'Employee', 'Owner'].includes(roleName)) {
+            throw new common_1.UnauthorizedException('Only Manager, Owner, and Employee roles can access this feature');
         }
-        const project = await this.projectRepo.findOne({ where: { id: projectId } });
+        if (projectId === null || projectId === undefined || Number.isNaN(Number(projectId))) {
+            throw new common_1.BadRequestException('Invalid project id');
+        }
+        const project = await this.projectRepo.findOne({ where: { id: Number(projectId) } });
         if (!project)
             throw new common_1.NotFoundException('Project not found');
+        const isEmployee = roleName === 'Employee';
         const tasks = await this.taskRepo.find({
-            where: { project: { id: projectId }, assignedTo: { id: authUser.id } },
+            where: isEmployee
+                ? { project: { id: projectId }, assignedTo: { id: authUser.id } }
+                : { project: { id: projectId } },
             relations: ['project', 'assignedTo', 'log', 'log.images'],
             order: { id: 'DESC' },
         });
         return tasks;
     }
     async getTask(authUser) {
-        const now = new Date();
         const tasks = await this.taskRepo.find({
             where: [
                 {
@@ -154,6 +160,9 @@ let TaskService = class TaskService {
     async createTask(CreateTaskDto, authUser) {
         this.checkAdmin(authUser);
         const { title, description, startTime, minStartTime, endTime, priority, projectId, assignedToUserId, } = CreateTaskDto;
+        if (!startTime) {
+            throw new common_1.BadRequestException('Start time is required');
+        }
         if (startTime && minStartTime) {
             const startDate = new Date(startTime);
             const minStart = new Date(minStartTime);
@@ -244,7 +253,7 @@ let TaskService = class TaskService {
         const newTask = this.taskRepo.create({
             title,
             description,
-            startTime: startTime ? new Date(startTime) : undefined,
+            startTime: new Date(startTime),
             endTime: endTime ? new Date(endTime) : undefined,
             priority: priority || undefined,
             assignedTo: user || undefined,
@@ -458,6 +467,44 @@ let TaskService = class TaskService {
             throw new common_1.NotFoundException('Task not found');
         }
         return task;
+    }
+    async filterTasks(filter, authUser) {
+        this.checkAuth(authUser);
+        const sortBy = filter.sortBy || 'createdAt';
+        const sortOrder = 'DESC';
+        const isUpcomingSort = sortBy === 'startTime';
+        const isUpcomingEnd = sortBy === 'endTime';
+        const now = new Date();
+        const startOfToday = new Date();
+        startOfToday.setHours(0, 0, 0, 0);
+        const endOfToday = new Date();
+        endOfToday.setHours(23, 59, 59, 999);
+        const where = { project: { id: filter.projectId } };
+        if (filter.unassigned === true) {
+            where.assignedTo = (0, typeorm_3.IsNull)();
+        }
+        else if (filter.assignedTo === 'me') {
+            where.assignedTo = { id: authUser.id };
+        }
+        else if (filter.email) {
+            where.assignedTo = { email: filter.email };
+        }
+        if (isUpcomingSort) {
+            where.startTime = (0, typeorm_3.MoreThanOrEqual)(now);
+        }
+        else if (isUpcomingEnd) {
+            where.endTime = (0, typeorm_3.Between)(startOfToday, endOfToday);
+        }
+        const tasks = await this.taskRepo.find({
+            where,
+            relations: ['project', 'assignedTo', 'log', 'log.images'],
+            order: isUpcomingSort
+                ? { startTime: 'ASC' }
+                : isUpcomingEnd
+                    ? { endTime: 'ASC' }
+                    : { [sortBy]: sortOrder },
+        });
+        return tasks;
     }
 };
 exports.TaskService = TaskService;

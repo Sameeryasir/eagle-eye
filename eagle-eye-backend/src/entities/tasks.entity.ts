@@ -32,8 +32,8 @@ export class Tasks {
   @Column({ type: 'timestamptz' })
   startTime: Date;
 
-  @Column({ type: 'timestamptz' })
-  endTime: Date;
+  @Column({ type: 'timestamptz', nullable: true })
+  endTime?: Date;
 
   @Column({
     type: 'enum',

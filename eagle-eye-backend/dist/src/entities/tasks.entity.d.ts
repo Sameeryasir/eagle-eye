@@ -12,7 +12,7 @@ export declare class Tasks {
     title: string;
     description?: string;
     startTime: Date;
-    endTime: Date;
+    endTime?: Date;
     priority: TaskPriority;
     createdAt: Date;
     project: Projects;

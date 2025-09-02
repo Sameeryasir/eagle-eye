@@ -7,12 +7,13 @@ import {
 } from '@nestjs/common';
 import { InjectRepository } from '@nestjs/typeorm';
 import { Projects } from 'src/entities/projects.entity';
-import { Repository, MoreThanOrEqual, LessThanOrEqual } from 'typeorm';
+import { Repository, MoreThanOrEqual, LessThanOrEqual, Between, LessThan, IsNull } from 'typeorm';
 import { Roles } from 'src/entities/roles.entity';
 import { CreateProjectDto } from './projectDto/create-project.dto';
 import { UpdateProjectDto } from './projectDto/update-project.dto';
 import { Companies } from 'src/entities/companies.entity';
 import { Users } from 'src/entities/users.entity';
+import { Tasks } from 'src/entities/tasks.entity';
 interface AuthenticatedUser {
   id: number;
   email: string;
@@ -24,11 +25,107 @@ export class ProjectService {
     @InjectRepository(Projects) private projectRepo: Repository<Projects>,
     @InjectRepository(Companies) private companyRepo: Repository<Companies>,
     @InjectRepository(Users) private userRepo: Repository<Users>,
+    @InjectRepository(Tasks) private taskRepo: Repository<Tasks>,
   ) {}
   private checkAuth(user: AuthenticatedUser) {
     if (!user || !user.id) {
       throw new UnauthorizedException('Login required');
     }
+  }
+
+  /*
+    Change Summary (MCP Context 7):
+    - What: Added method to fetch tasks in a project assigned to the authenticated Manager.
+    - Why: Manager-specific endpoint lives under ProjectController per request.
+  */
+  async getManagerAssignedTasksByProject(
+    projectId: number,
+    authUser: AuthenticatedUser,
+  ) {
+    this.checkAdmin(authUser);
+    if (authUser.role.name !== 'Manager') {
+      throw new UnauthorizedException('Only Manager can access this resource');
+    }
+
+    if (projectId === null || projectId === undefined || Number.isNaN(Number(projectId))) {
+      throw new BadRequestException('Invalid project id');
+    }
+
+    const project = await this.projectRepo.findOne({
+      where: { id: Number(projectId) },
+      relations: ['company'],
+    });
+    if (!project) throw new NotFoundException('Project not found');
+
+    const managerWithCompany = await this.userRepo.findOne({
+      where: { id: authUser.id },
+      relations: ['company'],
+    });
+    if (!managerWithCompany?.company?.id) {
+      throw new ForbiddenException('Manager must be associated with a company');
+    }
+    if (project.company?.id !== managerWithCompany.company.id) {
+      throw new ForbiddenException('Access denied: Project is not in your company');
+    }
+
+    // Compute today's start and end in server timezone
+    const startOfToday = new Date();
+    startOfToday.setHours(0, 0, 0, 0);
+    const endOfToday = new Date();
+    endOfToday.setHours(23, 59, 59, 999);
+
+    // --- Today's Tasks ---
+    const todaysTasks = await this.taskRepo.find({
+      where: {
+        project: { id: Number(projectId) },
+        assignedTo: { id: authUser.id },
+        // Use task start time to determine today's schedule window
+        startTime: Between(startOfToday, endOfToday),
+      },
+      relations: ['project', 'assignedTo', 'assignedTo.role', 'log', 'log.images'],
+      order: { startTime: 'ASC' },
+    });
+
+    // Exclude tasks that already ended before today (endTime < startOfToday)
+    const filteredTodaysTasks = todaysTasks.filter(
+      (t) => !t.endTime || t.endTime >= startOfToday,
+    );
+
+    // --- Overdue Carry-over Rule (via Project Relations) ---
+    // What: Load project with related tasks and filter overdue by relation fields (log is null, created before today).
+    // Why: Simpler relation-based approach per request; avoids complex query builder while keeping behavior.
+    // MCP Context 7: Clear, maintainable logic with minimal surface-area of change.
+    const projectWithTasks = await this.projectRepo.findOne({
+      where: { id: Number(projectId) },
+      relations: [
+        'tasks',
+        'tasks.assignedTo',
+        'tasks.assignedTo.role',
+        'tasks.log',
+        'tasks.log.images',
+      ],
+    });
+
+    const overdueTasksSortedDesc = (projectWithTasks?.tasks || [])
+      // Business rule: overdue should be specifically for this Manager within the project
+      // Overdue means the task's scheduled start time was before today and no log exists
+      .filter(
+        (t) =>
+          t &&
+          t.startTime < startOfToday &&
+          !t.log &&
+          t.assignedTo?.id === authUser.id &&
+          // Exclude tasks that already ended before today (endTime < startOfToday)
+          (!t.endTime || t.endTime >= startOfToday),
+      )
+      .sort((a, b) => (a.createdAt > b.createdAt ? -1 : a.createdAt < b.createdAt ? 1 : 0));
+
+    const previousOverdue = overdueTasksSortedDesc[0] || null;
+
+    // Return today's tasks plus a single overdue task (if any), marking it for client awareness
+    return previousOverdue
+      ? [...filteredTodaysTasks, { ...previousOverdue, overdue: true }]
+      : filteredTodaysTasks;
   }
 
   private checkAdmin(user: AuthenticatedUser) {

@@ -10,9 +10,9 @@ export class CreateTaskDto {
   @IsString()
   description?: string;
 
-  @IsOptional()
+  // Start time is required for task creation
   @IsDateString()
-  startTime?: string;
+  startTime: string;
 
   // Optional anchor captured by frontend when draft opened; backend will ensure
   // startTime is not before this, instead of comparing to server "now"

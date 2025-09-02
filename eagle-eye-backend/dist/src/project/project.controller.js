@@ -33,6 +33,11 @@ let ProjectController = class ProjectController {
         const project = await this.projectService.getProjectById(Number(id), user);
         return project;
     }
+    async getManagerAssignedTasksByProject(id, req) {
+        const user = req.user;
+        const projectId = Number(id);
+        return await this.projectService.getManagerAssignedTasksByProject(projectId, user);
+    }
     async createProject(createProjecDto, req) {
         const user = req.user;
         const project = await this.projectService.createProject(createProjecDto, user);
@@ -67,6 +72,15 @@ __decorate([
     __metadata("design:paramtypes", [String, Object]),
     __metadata("design:returntype", Promise)
 ], ProjectController.prototype, "getProjectById", null);
+__decorate([
+    (0, common_1.Get)('manager-tasks/:id'),
+    (0, common_1.UseGuards)((0, passport_1.AuthGuard)('jwt')),
+    __param(0, (0, common_1.Param)('id')),
+    __param(1, (0, common_1.Request)()),
+    __metadata("design:type", Function),
+    __metadata("design:paramtypes", [String, Object]),
+    __metadata("design:returntype", Promise)
+], ProjectController.prototype, "getManagerAssignedTasksByProject", null);
 __decorate([
     (0, common_1.Post)('create'),
     (0, common_1.UseGuards)((0, passport_1.AuthGuard)('jwt')),
