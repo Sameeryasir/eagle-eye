@@ -21,19 +21,14 @@ export class LogController {
   @Post('create')
   @UseGuards(AuthGuard('jwt'))
   async createLog(
-    @Body() createLogDto: CreateLogDto,
+    @Body(ValidationPipe) createLogDto: CreateLogDto,
     @Request() req
   ) {
     const user = req.user;
     
-    // Create log data
-    const logData = {
-      note: createLogDto.note,
-      task_id: createLogDto.task_id,
-      user_id: user.id
-    };
-    
-    const newLog = await this.logService.createLog(logData, user);
+    // Pass the DTO directly to service - it now includes project_id validation
+    // Business rule: One log per project per day enforced in service layer
+    const newLog = await this.logService.createLog(createLogDto, user);
     return newLog;
   }
 

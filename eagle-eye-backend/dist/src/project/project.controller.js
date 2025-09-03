@@ -73,7 +73,7 @@ __decorate([
     __metadata("design:returntype", Promise)
 ], ProjectController.prototype, "getProjectById", null);
 __decorate([
-    (0, common_1.Get)('manager-tasks/:id'),
+    (0, common_1.Get)('manager/employee-tasks/:id'),
     (0, common_1.UseGuards)((0, passport_1.AuthGuard)('jwt')),
     __param(0, (0, common_1.Param)('id')),
     __param(1, (0, common_1.Request)()),

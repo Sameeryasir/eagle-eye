@@ -35,7 +35,7 @@ export class ProjectController {
   }
 
   // --- Manager-only: Tasks assigned to the authenticated Manager for a project ---
-  @Get('manager-tasks/:id')
+  @Get('manager/employee-tasks/:id')
   @UseGuards(AuthGuard('jwt'))
   async getManagerAssignedTasksByProject(@Param('id') id: string, @Request() req) {
     const user = req.user;

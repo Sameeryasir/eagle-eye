@@ -7,7 +7,16 @@ import {
 } from '@nestjs/common';
 import { InjectRepository } from '@nestjs/typeorm';
 import { Projects } from 'src/entities/projects.entity';
-import { Repository, MoreThanOrEqual, LessThanOrEqual, Between, LessThan, IsNull } from 'typeorm';
+import {
+  Repository,
+  MoreThanOrEqual,
+  LessThanOrEqual,
+  Between,
+  LessThan,
+  IsNull,
+  Not,
+} from 'typeorm';
+import { Logs } from 'src/entities/logs.entity';
 import { Roles } from 'src/entities/roles.entity';
 import { CreateProjectDto } from './projectDto/create-project.dto';
 import { UpdateProjectDto } from './projectDto/update-project.dto';
@@ -26,6 +35,7 @@ export class ProjectService {
     @InjectRepository(Companies) private companyRepo: Repository<Companies>,
     @InjectRepository(Users) private userRepo: Repository<Users>,
     @InjectRepository(Tasks) private taskRepo: Repository<Tasks>,
+    @InjectRepository(Logs) private logRepo: Repository<Logs>,
   ) {}
   private checkAuth(user: AuthenticatedUser) {
     if (!user || !user.id) {
@@ -35,19 +45,25 @@ export class ProjectService {
 
   /*
     Change Summary (MCP Context 7):
-    - What: Added method to fetch tasks in a project assigned to the authenticated Manager.
-    - Why: Manager-specific endpoint lives under ProjectController per request.
+    - What: Added method to fetch tasks in a project assigned to the authenticated Manager or Employee.
+    - Why: Both Manager and Employee need access to their assigned tasks for a specific project.
   */
   async getManagerAssignedTasksByProject(
     projectId: number,
     authUser: AuthenticatedUser,
   ) {
     this.checkAdmin(authUser);
-    if (authUser.role.name !== 'Manager') {
-      throw new UnauthorizedException('Only Manager can access this resource');
+    if (!['Manager', 'Employee'].includes(authUser.role.name)) {
+      throw new UnauthorizedException(
+        'Only Manager and Employee can access this resource',
+      );
     }
 
-    if (projectId === null || projectId === undefined || Number.isNaN(Number(projectId))) {
+    if (
+      projectId === null ||
+      projectId === undefined ||
+      Number.isNaN(Number(projectId))
+    ) {
       throw new BadRequestException('Invalid project id');
     }
 
@@ -57,15 +73,19 @@ export class ProjectService {
     });
     if (!project) throw new NotFoundException('Project not found');
 
-    const managerWithCompany = await this.userRepo.findOne({
+    // --- Company Access Validation ---
+    // Both Manager and Employee must be associated with the same company as the project
+    const userWithCompany = await this.userRepo.findOne({
       where: { id: authUser.id },
       relations: ['company'],
     });
-    if (!managerWithCompany?.company?.id) {
-      throw new ForbiddenException('Manager must be associated with a company');
+    if (!userWithCompany?.company?.id) {
+      throw new ForbiddenException('User must be associated with a company');
     }
-    if (project.company?.id !== managerWithCompany.company.id) {
-      throw new ForbiddenException('Access denied: Project is not in your company');
+    if (project.company?.id !== userWithCompany.company.id) {
+      throw new ForbiddenException(
+        'Access denied: Project is not in your company',
+      );
     }
 
     // Compute today's start and end in server timezone
@@ -74,16 +94,37 @@ export class ProjectService {
     const endOfToday = new Date();
     endOfToday.setHours(23, 59, 59, 999);
 
+    // --- Check for Existing Logs Today ---
+    // Business rule: Only one log per day per task is allowed
+    const existingLogToday = await this.taskRepo.findOne({
+      where: {
+        project: { id: Number(projectId) },
+        assignedTo: { id: authUser.id },
+        log: {
+          createdAt: Between(startOfToday, endOfToday),
+        },
+      },
+      relations: ['log'],
+    });
+
+    if (existingLogToday) {
+      throw new BadRequestException(
+        'You can only create one log per day. A log already exists for today.',
+      );
+    }
+
     // --- Today's Tasks ---
     const todaysTasks = await this.taskRepo.find({
       where: {
         project: { id: Number(projectId) },
         assignedTo: { id: authUser.id },
-        // Use task start time to determine today's schedule window
+        // Fetch tasks starting today (until day ends)
         startTime: Between(startOfToday, endOfToday),
+        // Only fetch tasks whose log doesn't exist
+        log: IsNull(),
       },
-      relations: ['project', 'assignedTo', 'assignedTo.role', 'log', 'log.images'],
-      order: { startTime: 'ASC' },
+      relations: ['assignedTo', 'assignedTo.role', 'log', 'log.images'],
+      order: { createdAt: 'DESC' }, // Order by creation time (newest first)
     });
 
     // Exclude tasks that already ended before today (endTime < startOfToday)
@@ -108,24 +149,26 @@ export class ProjectService {
 
     const overdueTasksSortedDesc = (projectWithTasks?.tasks || [])
       // Business rule: overdue should be specifically for this Manager within the project
-      // Overdue means the task's scheduled start time was before today and no log exists
+      // Overdue means the task start time was before today, no log exists, and endTime is today or future
       .filter(
         (t) =>
           t &&
           t.startTime < startOfToday &&
           !t.log &&
-          t.assignedTo?.id === authUser.id &&
-          // Exclude tasks that already ended before today (endTime < startOfToday)
-          (!t.endTime || t.endTime >= startOfToday),
+          t.assignedTo?.id === authUser.id,
       )
-      .sort((a, b) => (a.createdAt > b.createdAt ? -1 : a.createdAt < b.createdAt ? 1 : 0));
+      .sort((a, b) =>
+        a.createdAt > b.createdAt ? -1 : a.createdAt < b.createdAt ? 1 : 0,
+      );
 
-    const previousOverdue = overdueTasksSortedDesc[0] || null;
+    // Mark all overdue tasks with active flag
+    const overdueTasks = overdueTasksSortedDesc.map((task) => ({
+      ...task,
+      active: true,
+    }));
 
-    // Return today's tasks plus a single overdue task (if any), marking it for client awareness
-    return previousOverdue
-      ? [...filteredTodaysTasks, { ...previousOverdue, overdue: true }]
-      : filteredTodaysTasks;
+    // Return today's tasks plus all overdue tasks
+    return [...filteredTodaysTasks, ...overdueTasks];
   }
 
   private checkAdmin(user: AuthenticatedUser) {

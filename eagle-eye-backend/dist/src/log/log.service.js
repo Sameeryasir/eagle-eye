@@ -52,13 +52,25 @@ let LogService = class LogService {
             throw new common_1.UnauthorizedException('User does not have required role');
         }
         const taskIds = Array.isArray(createLogDto.task_id) ? createLogDto.task_id : [createLogDto.task_id];
+        const projectId = createLogDto.project_id;
         const tasks = await this.taskrepo.find({
-            where: { id: (0, typeorm_2.In)(taskIds) }
+            where: { id: (0, typeorm_2.In)(taskIds) },
+            relations: ['project']
         });
         if (tasks.length !== taskIds.length) {
             const foundTaskIds = tasks.map(task => task.id);
             const missingTaskIds = taskIds.filter(id => !foundTaskIds.includes(id));
             throw new common_1.NotFoundException(`Tasks not found: ${missingTaskIds.join(', ')}`);
+        }
+        const tasksNotInProject = tasks.filter(task => task.project?.id !== projectId);
+        if (tasksNotInProject.length > 0) {
+            const invalidTaskIds = tasksNotInProject.map(task => task.id);
+            throw new common_1.BadRequestException(`Tasks ${invalidTaskIds.join(', ')} do not belong to project ${projectId}`);
+        }
+        const tasksWithoutProject = tasks.filter(task => !task.project?.id);
+        if (tasksWithoutProject.length > 0) {
+            const unassignedTaskIds = tasksWithoutProject.map(task => task.id);
+            throw new common_1.BadRequestException(`Tasks ${unassignedTaskIds.join(', ')} are not assigned to any project`);
         }
         const existingLogs = await this.logrepo.find({
             where: {
@@ -70,7 +82,7 @@ let LogService = class LogService {
         if (existingLogs.length > 0) {
             const tasksWithLogs = existingLogs.flatMap(log => log.tasks.map(task => task.id));
             const duplicateTaskIds = taskIds.filter(id => tasksWithLogs.includes(id));
-            throw new common_1.BadRequestException(`Logs already exist for tasks: ${duplicateTaskIds.join(', ')}. Cannot create duplicate logs.`);
+            throw new common_1.BadRequestException(`You can create One log against one project. Tasks ${duplicateTaskIds.join(', ')} already have logs.`);
         }
         const log = this.logrepo.create({
             note: createLogDto.note,

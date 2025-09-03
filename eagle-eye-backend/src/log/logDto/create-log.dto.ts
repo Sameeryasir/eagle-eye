@@ -11,5 +11,9 @@ export class CreateLogDto {
   @IsNotEmpty()
   task_id: number | number[];
 
+  @IsNumber()
+  @IsNotEmpty()
+  project_id: number;
+
   // createdAt is managed by the server; clients should not send it
 }

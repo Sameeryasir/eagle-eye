@@ -6,10 +6,11 @@ import { Projects } from 'src/entities/projects.entity';
 import { Companies } from 'src/entities/companies.entity';
 import { Users } from 'src/entities/users.entity';
 import { Tasks } from 'src/entities/tasks.entity';
+import { Logs } from 'src/entities/logs.entity';
 
 @Module({
   imports: [
-    TypeOrmModule.forFeature([Projects, Companies, Users, Tasks])
+    TypeOrmModule.forFeature([Projects, Companies, Users, Tasks, Logs])
   ],
   providers: [ProjectService],
   controllers: [ProjectController]

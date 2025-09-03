@@ -5,7 +5,8 @@ import { Logs } from 'src/entities/logs.entity';
 import { Tasks } from 'src/entities/tasks.entity';
 import { Users } from 'src/entities/users.entity';
 import { Roles } from 'src/entities/roles.entity';
-import { Repository, In } from 'typeorm';
+import { Projects } from 'src/entities/projects.entity';
+import { Repository, In, Between } from 'typeorm';
 import { CreateLogDto } from './logDto/create-log.dto';
 import { UpdateLogDto } from './logDto/update-log.dto';
 
@@ -59,10 +60,12 @@ export class LogService {
         // --- Task Validation Step ---
         // Handle multiple task IDs (supports both single task_id and array of task_ids)
         const taskIds = Array.isArray(createLogDto.task_id) ? createLogDto.task_id : [createLogDto.task_id];
+        const projectId = createLogDto.project_id;
         
-        // Check if all tasks exist in database
+        // Check if all tasks exist in database and load their project relations
         const tasks = await this.taskrepo.find({ 
-            where: { id: In(taskIds) }
+            where: { id: In(taskIds) },
+            relations: ['project']
         });
         
         if (tasks.length !== taskIds.length) {
@@ -70,6 +73,23 @@ export class LogService {
             const missingTaskIds = taskIds.filter(id => !foundTaskIds.includes(id));
             throw new NotFoundException(`Tasks not found: ${missingTaskIds.join(', ')}`);
         }
+        
+        // --- Project Validation Step ---
+        // Ensure all tasks belong to the provided project ID
+        const tasksNotInProject = tasks.filter(task => task.project?.id !== projectId);
+        if (tasksNotInProject.length > 0) {
+            const invalidTaskIds = tasksNotInProject.map(task => task.id);
+            throw new BadRequestException(`Tasks ${invalidTaskIds.join(', ')} do not belong to project ${projectId}`);
+        }
+        
+        // Ensure all tasks have a project assigned
+        const tasksWithoutProject = tasks.filter(task => !task.project?.id);
+        if (tasksWithoutProject.length > 0) {
+            const unassignedTaskIds = tasksWithoutProject.map(task => task.id);
+            throw new BadRequestException(`Tasks ${unassignedTaskIds.join(', ')} are not assigned to any project`);
+        }
+        
+
         
         // --- Duplicate Log Check Step ---
         // Check if logs already exist for any of the tasks
@@ -85,7 +105,7 @@ export class LogService {
             // Find which tasks already have logs
             const tasksWithLogs = existingLogs.flatMap(log => log.tasks.map(task => task.id));
             const duplicateTaskIds = taskIds.filter(id => tasksWithLogs.includes(id));
-            throw new BadRequestException(`Logs already exist for tasks: ${duplicateTaskIds.join(', ')}. Cannot create duplicate logs.`);
+            throw new BadRequestException(`You can create One log against one project. Tasks ${duplicateTaskIds.join(', ')} already have logs.`);
         }
         
         // --- Log Creation Step ---

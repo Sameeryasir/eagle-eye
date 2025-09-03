@@ -15,6 +15,7 @@ const class_transformer_1 = require("class-transformer");
 class CreateLogDto {
     note;
     task_id;
+    project_id;
 }
 exports.CreateLogDto = CreateLogDto;
 __decorate([
@@ -28,4 +29,9 @@ __decorate([
     (0, class_validator_1.IsNotEmpty)(),
     __metadata("design:type", Object)
 ], CreateLogDto.prototype, "task_id", void 0);
+__decorate([
+    (0, class_validator_1.IsNumber)(),
+    (0, class_validator_1.IsNotEmpty)(),
+    __metadata("design:type", Number)
+], CreateLogDto.prototype, "project_id", void 0);
 //# sourceMappingURL=create-log.dto.js.map

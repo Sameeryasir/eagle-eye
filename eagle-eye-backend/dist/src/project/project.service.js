@@ -17,6 +17,7 @@ const common_1 = require("@nestjs/common");
 const typeorm_1 = require("@nestjs/typeorm");
 const projects_entity_1 = require("../entities/projects.entity");
 const typeorm_2 = require("typeorm");
+const logs_entity_1 = require("../entities/logs.entity");
 const companies_entity_1 = require("../entities/companies.entity");
 const users_entity_1 = require("../entities/users.entity");
 const tasks_entity_1 = require("../entities/tasks.entity");
@@ -25,11 +26,13 @@ let ProjectService = class ProjectService {
     companyRepo;
     userRepo;
     taskRepo;
-    constructor(projectRepo, companyRepo, userRepo, taskRepo) {
+    logRepo;
+    constructor(projectRepo, companyRepo, userRepo, taskRepo, logRepo) {
         this.projectRepo = projectRepo;
         this.companyRepo = companyRepo;
         this.userRepo = userRepo;
         this.taskRepo = taskRepo;
+        this.logRepo = logRepo;
     }
     checkAuth(user) {
         if (!user || !user.id) {
@@ -38,10 +41,12 @@ let ProjectService = class ProjectService {
     }
     async getManagerAssignedTasksByProject(projectId, authUser) {
         this.checkAdmin(authUser);
-        if (authUser.role.name !== 'Manager') {
-            throw new common_1.UnauthorizedException('Only Manager can access this resource');
+        if (!['Manager', 'Employee'].includes(authUser.role.name)) {
+            throw new common_1.UnauthorizedException('Only Manager and Employee can access this resource');
         }
-        if (projectId === null || projectId === undefined || Number.isNaN(Number(projectId))) {
+        if (projectId === null ||
+            projectId === undefined ||
+            Number.isNaN(Number(projectId))) {
             throw new common_1.BadRequestException('Invalid project id');
         }
         const project = await this.projectRepo.findOne({
@@ -50,28 +55,42 @@ let ProjectService = class ProjectService {
         });
         if (!project)
             throw new common_1.NotFoundException('Project not found');
-        const managerWithCompany = await this.userRepo.findOne({
+        const userWithCompany = await this.userRepo.findOne({
             where: { id: authUser.id },
             relations: ['company'],
         });
-        if (!managerWithCompany?.company?.id) {
-            throw new common_1.ForbiddenException('Manager must be associated with a company');
+        if (!userWithCompany?.company?.id) {
+            throw new common_1.ForbiddenException('User must be associated with a company');
         }
-        if (project.company?.id !== managerWithCompany.company.id) {
+        if (project.company?.id !== userWithCompany.company.id) {
             throw new common_1.ForbiddenException('Access denied: Project is not in your company');
         }
         const startOfToday = new Date();
         startOfToday.setHours(0, 0, 0, 0);
         const endOfToday = new Date();
         endOfToday.setHours(23, 59, 59, 999);
+        const existingLogToday = await this.taskRepo.findOne({
+            where: {
+                project: { id: Number(projectId) },
+                assignedTo: { id: authUser.id },
+                log: {
+                    createdAt: (0, typeorm_2.Between)(startOfToday, endOfToday),
+                },
+            },
+            relations: ['log'],
+        });
+        if (existingLogToday) {
+            throw new common_1.BadRequestException('You can only create one log per day. A log already exists for today.');
+        }
         const todaysTasks = await this.taskRepo.find({
             where: {
                 project: { id: Number(projectId) },
                 assignedTo: { id: authUser.id },
                 startTime: (0, typeorm_2.Between)(startOfToday, endOfToday),
+                log: (0, typeorm_2.IsNull)(),
             },
-            relations: ['project', 'assignedTo', 'assignedTo.role', 'log', 'log.images'],
-            order: { startTime: 'ASC' },
+            relations: ['assignedTo', 'assignedTo.role', 'log', 'log.images'],
+            order: { createdAt: 'DESC' },
         });
         const filteredTodaysTasks = todaysTasks.filter((t) => !t.endTime || t.endTime >= startOfToday);
         const projectWithTasks = await this.projectRepo.findOne({
@@ -88,13 +107,13 @@ let ProjectService = class ProjectService {
             .filter((t) => t &&
             t.startTime < startOfToday &&
             !t.log &&
-            t.assignedTo?.id === authUser.id &&
-            (!t.endTime || t.endTime >= startOfToday))
-            .sort((a, b) => (a.createdAt > b.createdAt ? -1 : a.createdAt < b.createdAt ? 1 : 0));
-        const previousOverdue = overdueTasksSortedDesc[0] || null;
-        return previousOverdue
-            ? [...filteredTodaysTasks, { ...previousOverdue, overdue: true }]
-            : filteredTodaysTasks;
+            t.assignedTo?.id === authUser.id)
+            .sort((a, b) => a.createdAt > b.createdAt ? -1 : a.createdAt < b.createdAt ? 1 : 0);
+        const overdueTasks = overdueTasksSortedDesc.map((task) => ({
+            ...task,
+            active: true,
+        }));
+        return [...filteredTodaysTasks, ...overdueTasks];
     }
     checkAdmin(user) {
         this.checkAuth(user);
@@ -396,7 +415,9 @@ exports.ProjectService = ProjectService = __decorate([
     __param(1, (0, typeorm_1.InjectRepository)(companies_entity_1.Companies)),
     __param(2, (0, typeorm_1.InjectRepository)(users_entity_1.Users)),
     __param(3, (0, typeorm_1.InjectRepository)(tasks_entity_1.Tasks)),
+    __param(4, (0, typeorm_1.InjectRepository)(logs_entity_1.Logs)),
     __metadata("design:paramtypes", [typeorm_2.Repository,
+        typeorm_2.Repository,
         typeorm_2.Repository,
         typeorm_2.Repository,
         typeorm_2.Repository])

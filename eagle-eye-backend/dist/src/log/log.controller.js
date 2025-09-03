@@ -30,12 +30,7 @@ let LogController = class LogController {
     }
     async createLog(createLogDto, req) {
         const user = req.user;
-        const logData = {
-            note: createLogDto.note,
-            task_id: createLogDto.task_id,
-            user_id: user.id
-        };
-        const newLog = await this.logService.createLog(logData, user);
+        const newLog = await this.logService.createLog(createLogDto, user);
         return newLog;
     }
     async getLogById(id, req) {
@@ -66,7 +61,7 @@ __decorate([
 __decorate([
     (0, common_1.Post)('create'),
     (0, common_1.UseGuards)((0, passport_1.AuthGuard)('jwt')),
-    __param(0, (0, common_1.Body)()),
+    __param(0, (0, common_1.Body)(common_1.ValidationPipe)),
     __param(1, (0, common_1.Request)()),
     __metadata("design:type", Function),
     __metadata("design:paramtypes", [create_log_dto_1.CreateLogDto, Object]),

@@ -1,5 +1,6 @@
 import { Projects } from 'src/entities/projects.entity';
 import { Repository } from 'typeorm';
+import { Logs } from 'src/entities/logs.entity';
 import { Roles } from 'src/entities/roles.entity';
 import { CreateProjectDto } from './projectDto/create-project.dto';
 import { UpdateProjectDto } from './projectDto/update-project.dto';
@@ -16,21 +17,10 @@ export declare class ProjectService {
     private companyRepo;
     private userRepo;
     private taskRepo;
-    constructor(projectRepo: Repository<Projects>, companyRepo: Repository<Companies>, userRepo: Repository<Users>, taskRepo: Repository<Tasks>);
+    private logRepo;
+    constructor(projectRepo: Repository<Projects>, companyRepo: Repository<Companies>, userRepo: Repository<Users>, taskRepo: Repository<Tasks>, logRepo: Repository<Logs>);
     private checkAuth;
-    getManagerAssignedTasksByProject(projectId: number, authUser: AuthenticatedUser): Promise<(Tasks | {
-        overdue: boolean;
-        id: number;
-        title: string;
-        description?: string;
-        startTime: Date;
-        endTime?: Date;
-        priority: import("src/entities/tasks.entity").TaskPriority;
-        createdAt: Date;
-        project: Projects;
-        assignedTo?: Users;
-        log: import("../entities/logs.entity").Logs | null;
-    })[]>;
+    getManagerAssignedTasksByProject(projectId: number, authUser: AuthenticatedUser): Promise<Tasks[]>;
     private checkAdmin;
     getProjects(authUser: AuthenticatedUser): Promise<any>;
     getProjectById(id: number, authUser: AuthenticatedUser): Promise<any>;
