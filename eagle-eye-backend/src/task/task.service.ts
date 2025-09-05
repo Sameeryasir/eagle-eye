@@ -762,9 +762,9 @@ async getLogsByProjectId(projectId: number, authUser: AuthenticatedUser) {
       where.assignedTo = { email: filter.email };
     }
     
-    // Filter for closed tasks (tasks with startTime in the past)
+    // Filter for closed tasks (tasks that started before today - past tasks)
     if (filter.closedTask === true) {
-      where.startTime = LessThan(now); // Only tasks that started before now
+      where.startTime = LessThan(startOfToday); // Only tasks that started before today
     }
     if (isUpcomingSort) {
       // Only include tasks that start now or later to reflect "upcoming"

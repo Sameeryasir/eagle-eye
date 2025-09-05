@@ -279,7 +279,6 @@ let ProjectService = class ProjectService {
                 where: {
                     id: id,
                     tasks: {
-                        assignedTo: { id: authUser.id },
                         startTime: (0, typeorm_2.MoreThanOrEqual)(today),
                         log: (0, typeorm_2.IsNull)(),
                     }

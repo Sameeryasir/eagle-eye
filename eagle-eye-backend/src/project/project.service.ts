@@ -369,7 +369,6 @@ export class ProjectService {
         where: { 
           id: id, 
           tasks: { 
-            assignedTo: { id: authUser.id },
             startTime: MoreThanOrEqual(today), // Only tasks starting today or later
             log: IsNull(), // Exclude tasks that have logs created against them
           } 

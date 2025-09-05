@@ -549,7 +549,7 @@ let TaskService = class TaskService {
             where.assignedTo = { email: filter.email };
         }
         if (filter.closedTask === true) {
-            where.startTime = (0, typeorm_2.LessThan)(now);
+            where.startTime = (0, typeorm_2.LessThan)(startOfToday);
         }
         if (isUpcomingSort) {
             where.startTime = (0, typeorm_3.MoreThanOrEqual)(now);
