@@ -23,9 +23,14 @@ let LogController = class LogController {
     constructor(logService) {
         this.logService = logService;
     }
-    async getLogs(req) {
+    async getLogs(projectId, req) {
         const user = req.user;
-        const logs = await this.logService.getLogs(user);
+        const logs = await this.logService.getLogs(user, Number(projectId));
+        return logs;
+    }
+    async getRecentLogsForOwner(projectId, req) {
+        const user = req.user;
+        const logs = await this.logService.getRecentLogsForOwner(user, Number(projectId));
         return logs;
     }
     async createLog(createLogDto, req) {
@@ -51,13 +56,23 @@ let LogController = class LogController {
 };
 exports.LogController = LogController;
 __decorate([
-    (0, common_1.Get)(),
+    (0, common_1.Get)(':projectId'),
     (0, common_1.UseGuards)((0, passport_1.AuthGuard)('jwt')),
-    __param(0, (0, common_1.Request)()),
+    __param(0, (0, common_1.Param)('projectId')),
+    __param(1, (0, common_1.Request)()),
     __metadata("design:type", Function),
-    __metadata("design:paramtypes", [Object]),
+    __metadata("design:paramtypes", [String, Object]),
     __metadata("design:returntype", Promise)
 ], LogController.prototype, "getLogs", null);
+__decorate([
+    (0, common_1.Get)('owner/recent/:projectId'),
+    (0, common_1.UseGuards)((0, passport_1.AuthGuard)('jwt')),
+    __param(0, (0, common_1.Param)('projectId')),
+    __param(1, (0, common_1.Request)()),
+    __metadata("design:type", Function),
+    __metadata("design:paramtypes", [String, Object]),
+    __metadata("design:returntype", Promise)
+], LogController.prototype, "getRecentLogsForOwner", null);
 __decorate([
     (0, common_1.Post)('create'),
     (0, common_1.UseGuards)((0, passport_1.AuthGuard)('jwt')),
@@ -68,7 +83,7 @@ __decorate([
     __metadata("design:returntype", Promise)
 ], LogController.prototype, "createLog", null);
 __decorate([
-    (0, common_1.Get)(':id'),
+    (0, common_1.Get)('singleLog/:id'),
     (0, common_1.UseGuards)((0, passport_1.AuthGuard)('jwt')),
     __param(0, (0, common_1.Param)('id')),
     __param(1, (0, common_1.Request)()),

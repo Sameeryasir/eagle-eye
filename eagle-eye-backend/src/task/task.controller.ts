@@ -63,7 +63,17 @@ export class TaskController {
     const tasks = await this.taskService.getTaskByProjectId(projectId, user);
     return tasks;
   }
-  
+  @Get('logs-filter/:id')
+  @UseGuards(AuthGuard('jwt'))
+  async getLogsByProjectId(@Param('id') id: string, @Request() req) {
+    const user = req.user;
+    const projectId = Number(id);
+    if (Number.isNaN(projectId)) {
+      throw new BadRequestException('Invalid project id');
+    }
+    const tasks = await this.taskService.getLogsByProjectId(projectId, user);
+    return tasks;
+  }
   // Sort tasks by createdAt or startTime (limited fields)
   @Post('filter')
   @UseGuards(AuthGuard('jwt'))

@@ -15,12 +15,13 @@ const tasks_entity_1 = require("../entities/tasks.entity");
 const users_entity_1 = require("../entities/users.entity");
 const projects_entity_1 = require("../entities/projects.entity");
 const companies_entity_1 = require("../entities/companies.entity");
+const logs_entity_1 = require("../entities/logs.entity");
 let TaskModule = class TaskModule {
 };
 exports.TaskModule = TaskModule;
 exports.TaskModule = TaskModule = __decorate([
     (0, common_1.Module)({
-        imports: [typeorm_1.TypeOrmModule.forFeature([tasks_entity_1.Tasks, users_entity_1.Users, projects_entity_1.Projects, companies_entity_1.Companies])],
+        imports: [typeorm_1.TypeOrmModule.forFeature([tasks_entity_1.Tasks, users_entity_1.Users, projects_entity_1.Projects, companies_entity_1.Companies, logs_entity_1.Logs])],
         controllers: [task_controller_1.TaskController],
         providers: [task_service_1.TaskService]
     })

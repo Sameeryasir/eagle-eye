@@ -26,6 +26,13 @@ export class ProjectController {
     const projects = await this.projectService.getProjects(user);
     return projects;
   }
+  @Get('logs/searching')
+  @UseGuards(AuthGuard('jwt'))
+  async getProjectsforLogsSearching(@Request() req) {
+    const user = req.user;
+    const projects = await this.projectService.getProjectsforLogsSearching(user);
+    return projects;
+  }
   @Get(':id')
   @UseGuards(AuthGuard('jwt'))
   async getProjectById(@Param('id') id: string ,@Request() req) {

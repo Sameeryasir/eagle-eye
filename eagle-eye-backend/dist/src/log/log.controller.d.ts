@@ -4,7 +4,8 @@ import { UpdateLogDto } from './logDto/update-log.dto';
 export declare class LogController {
     private readonly logService;
     constructor(logService: LogService);
-    getLogs(req: any): Promise<import("../entities/logs.entity").Logs[]>;
+    getLogs(projectId: string, req: any): Promise<import("../entities/logs.entity").Logs[]>;
+    getRecentLogsForOwner(projectId: string, req: any): Promise<import("../entities/logs.entity").Logs[]>;
     createLog(createLogDto: CreateLogDto, req: any): Promise<{
         message: string;
         log: import("../entities/logs.entity").Logs;

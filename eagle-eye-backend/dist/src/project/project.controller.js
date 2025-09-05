@@ -28,6 +28,11 @@ let ProjectController = class ProjectController {
         const projects = await this.projectService.getProjects(user);
         return projects;
     }
+    async getProjectsforLogsSearching(req) {
+        const user = req.user;
+        const projects = await this.projectService.getProjectsforLogsSearching(user);
+        return projects;
+    }
     async getProjectById(id, req) {
         const user = req.user;
         const project = await this.projectService.getProjectById(Number(id), user);
@@ -63,6 +68,14 @@ __decorate([
     __metadata("design:paramtypes", [Object]),
     __metadata("design:returntype", Promise)
 ], ProjectController.prototype, "getProjects", null);
+__decorate([
+    (0, common_1.Get)('logs/searching'),
+    (0, common_1.UseGuards)((0, passport_1.AuthGuard)('jwt')),
+    __param(0, (0, common_1.Request)()),
+    __metadata("design:type", Function),
+    __metadata("design:paramtypes", [Object]),
+    __metadata("design:returntype", Promise)
+], ProjectController.prototype, "getProjectsforLogsSearching", null);
 __decorate([
     (0, common_1.Get)(':id'),
     (0, common_1.UseGuards)((0, passport_1.AuthGuard)('jwt')),

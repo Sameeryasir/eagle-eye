@@ -21,9 +21,10 @@ export declare class LogService {
         message: string;
         log: Logs;
     }>;
-    getLogs(authUser: AuthenticatedUser): Promise<Logs[]>;
+    getLogs(authUser: AuthenticatedUser, projectId: number): Promise<Logs[]>;
     updateLog(logId: number, updateLogDto: UpdateLogDto, authUser: AuthenticatedUser): Promise<Logs>;
     deleteLog(logId: number, authUser: AuthenticatedUser): Promise<Logs>;
     getLogById(logId: number, authUser: AuthenticatedUser): Promise<Logs>;
+    getRecentLogsForOwner(authUser: AuthenticatedUser, projectId: number): Promise<Logs[]>;
 }
 export {};

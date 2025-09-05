@@ -77,12 +77,33 @@ async getTaskByProjectId(projectId: number, authUser: AuthenticatedUser) {
   if (!project) throw new NotFoundException('Project not found');
 
   // --- Data Fetch (Business Rule) ---
-  // Manager/Owner: fetch all tasks for the project; Employee: only assigned tasks in the project
+  // All roles: fetch tasks with startTime today or in the future (no past tasks for any role)
   const isEmployee = roleName === 'Employee';
+  const isManager = roleName === 'Manager';
+  const isOwner = roleName === 'Owner';
+  
+  // For all roles, only show tasks with startTime today or in the future
+  const today = new Date();
+  today.setHours(0, 0, 0, 0); // Start of today
+  
   const tasks = await this.taskRepo.find({
     where: isEmployee
-      ? { project: { id: projectId }, assignedTo: { id: authUser.id } }
-      : { project: { id: projectId } },
+      ? { 
+          project: { id: projectId }, 
+          assignedTo: { id: authUser.id },
+          startTime: MoreThanOrEqual(today), // Only tasks starting today or later
+        }
+      : isManager
+      ? {
+          project: { id: projectId },
+          startTime: MoreThanOrEqual(today), // Only tasks starting today or later
+        }
+      : isOwner
+      ? {
+          project: { id: projectId },
+          startTime: MoreThanOrEqual(today), // Only tasks starting today or later
+        }
+      : { project: { id: projectId } }, // Fallback (should not reach here due to auth check)
     relations: ['project', 'assignedTo', 'log', 'log.images'],
     order: { id: 'DESC' },
   });
@@ -90,7 +111,57 @@ async getTaskByProjectId(projectId: number, authUser: AuthenticatedUser) {
   return tasks;
 }
 
+async getLogsByProjectId(projectId: number, authUser: AuthenticatedUser) {
 
+
+  // --- Authentication Step ---
+  this.checkAuth(authUser);
+
+  // --- Authorization Step ---
+  const roleName = authUser.role?.name;
+  if (!roleName || !['Manager', 'Employee', 'Owner'].includes(roleName)) {
+    throw new UnauthorizedException('Only Manager, Owner, and Employee roles can access this feature');
+  }
+
+  // --- Validation Step ---
+  // Input validation to avoid invalid integer usage downstream
+  if (projectId === null || projectId === undefined || Number.isNaN(Number(projectId))) {
+    throw new BadRequestException('Invalid project id');
+  }
+  const project = await this.projectRepo.findOne({ where: { id: Number(projectId) } });
+  if (!project) throw new NotFoundException('Project not found');
+
+  // --- Data Fetch (Business Rule) ---
+  // All roles: fetch tasks with startTime today or in the future (no past tasks for any role)
+  const isEmployee = roleName === 'Employee';
+  const isManager = roleName === 'Manager';
+  const isOwner = roleName === 'Owner';
+  
+  // For all roles, only show tasks with startTime today or in the future
+  const today = new Date();
+  today.setHours(0, 0, 0, 0); // Start of today
+  
+  const tasks = await this.taskRepo.find({
+    where: isEmployee
+      ? { 
+          project: { id: projectId }, 
+          assignedTo: { id: authUser.id },
+        }
+      : isManager
+      ? {
+          project: { id: projectId },
+        }
+      : isOwner
+      ? {
+          project: { id: projectId },
+        }
+      : { project: { id: projectId } }, // Fallback (should not reach here due to auth check)
+    relations: ['project', 'assignedTo', 'log', 'log.images'],
+    order: { id: 'DESC' },
+  });
+
+  return tasks;
+}
   async getTask(authUser: AuthenticatedUser) {
     // Fetch only upcoming or ongoing tasks assigned to the current authenticated user
     const tasks = await this.taskRepo.find({
@@ -667,6 +738,7 @@ async getTaskByProjectId(projectId: number, authUser: AuthenticatedUser) {
   
     const isUpcomingSort = sortBy === 'startTime';
     const isUpcomingEnd = sortBy === 'endTime';
+    const isCreatedAtSort = sortBy === 'createdAt';
     const now = new Date();
     // Define today's bounds for endTime filtering (tasks ending today)
     const startOfToday = new Date();
@@ -692,6 +764,8 @@ async getTaskByProjectId(projectId: number, authUser: AuthenticatedUser) {
     } else if (isUpcomingEnd) {
       // When user selects endTime, show tasks ending today only
       where.endTime = Between(startOfToday, endOfToday);
+    } else if (isCreatedAtSort) {
+      where.createdAt = MoreThanOrEqual(startOfToday);
     }
 
     const tasks = await this.taskRepo.find({

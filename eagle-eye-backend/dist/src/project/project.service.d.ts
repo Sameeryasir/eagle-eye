@@ -23,6 +23,7 @@ export declare class ProjectService {
     getManagerAssignedTasksByProject(projectId: number, authUser: AuthenticatedUser): Promise<Tasks[]>;
     private checkAdmin;
     getProjects(authUser: AuthenticatedUser): Promise<any>;
+    getProjectsforLogsSearching(authUser: AuthenticatedUser): Promise<any>;
     getProjectById(id: number, authUser: AuthenticatedUser): Promise<any>;
     createProject(createProjectDto: CreateProjectDto, authUser: AuthenticatedUser): Promise<Projects>;
     updateProject(id: number, updateProjectDto: UpdateProjectDto, authUser: AuthenticatedUser): Promise<Projects>;

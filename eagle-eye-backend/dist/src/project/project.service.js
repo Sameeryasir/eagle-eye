@@ -192,13 +192,95 @@ let ProjectService = class ProjectService {
         }
         return projects;
     }
+    async getProjectsforLogsSearching(authUser) {
+        this.checkAdmin(authUser);
+        let projects;
+        if (authUser.role.name === 'Manager') {
+            const today = new Date();
+            today.setHours(0, 0, 0, 0);
+            projects = await this.projectRepo.find({
+                where: {
+                    assignedTo: { id: authUser.id },
+                },
+                relations: [
+                    'tasks',
+                    'tasks.assignedTo',
+                    'tasks.log',
+                    'tasks.log.images',
+                ],
+                order: {
+                    id: 'DESC',
+                },
+            });
+        }
+        else if (authUser.role.name === 'Owner') {
+            const today = new Date();
+            today.setHours(0, 0, 0, 0);
+            const ownerUser = await this.userRepo.findOne({
+                where: { id: authUser.id },
+                relations: ['company'],
+            });
+            if (!ownerUser?.company) {
+                throw new common_1.BadRequestException('Owner must be associated with a company');
+            }
+            projects = await this.projectRepo.find({
+                where: {
+                    company: { id: ownerUser.company.id },
+                },
+                relations: [
+                    'tasks',
+                    'tasks.assignedTo',
+                    'tasks.log',
+                    'tasks.log.images',
+                ],
+                order: {
+                    id: 'DESC',
+                },
+            });
+        }
+        else if (authUser.role.name === 'Employee') {
+            projects = await this.projectRepo.find({
+                where: {
+                    tasks: {
+                        assignedTo: { id: authUser.id },
+                    },
+                },
+                relations: [
+                    'tasks',
+                    'tasks.assignedTo',
+                    'tasks.log',
+                    'tasks.log.images',
+                ],
+                order: {
+                    id: 'DESC',
+                },
+            });
+        }
+        else {
+            projects = await this.projectRepo.find({
+                relations: ['tasks', 'tasks.assignedTo'],
+                order: {
+                    id: 'DESC',
+                },
+            });
+        }
+        return projects;
+    }
     async getProjectById(id, authUser) {
         this.checkAdmin(authUser);
         const roleName = authUser.role?.name;
         let project;
         if (roleName === 'Manager') {
+            const today = new Date();
+            today.setHours(0, 0, 0, 0);
             project = await this.projectRepo.findOne({
-                where: { id: id, assignedTo: { id: authUser.id } },
+                where: {
+                    id: id,
+                    assignedTo: { id: authUser.id },
+                    tasks: {
+                        startTime: (0, typeorm_2.MoreThanOrEqual)(today),
+                    },
+                },
                 relations: [
                     'owner',
                     'company',
@@ -212,8 +294,16 @@ let ProjectService = class ProjectService {
             });
         }
         else if (roleName === 'Employee') {
+            const today = new Date();
+            today.setHours(0, 0, 0, 0);
             project = await this.projectRepo.findOne({
-                where: { id: id, tasks: { assignedTo: { id: authUser.id } } },
+                where: {
+                    id: id,
+                    tasks: {
+                        assignedTo: { id: authUser.id },
+                        startTime: (0, typeorm_2.MoreThanOrEqual)(today),
+                    }
+                },
                 relations: [
                     'owner',
                     'company',
@@ -279,8 +369,10 @@ let ProjectService = class ProjectService {
         }
         if (startDate) {
             const start = new Date(startDate);
-            const now = new Date();
-            if (start.getTime() < now.getTime()) {
+            const today = new Date();
+            today.setHours(0, 0, 0, 0);
+            start.setHours(0, 0, 0, 0);
+            if (start.getTime() < today.getTime()) {
                 throw new common_1.BadRequestException('Start date cannot be in the past');
             }
         }

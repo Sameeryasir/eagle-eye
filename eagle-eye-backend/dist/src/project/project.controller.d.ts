@@ -5,6 +5,7 @@ export declare class ProjectController {
     private readonly projectService;
     constructor(projectService: ProjectService);
     getProjects(req: any): Promise<any>;
+    getProjectsforLogsSearching(req: any): Promise<any>;
     getProjectById(id: string, req: any): Promise<any>;
     getManagerAssignedTasksByProject(id: string, req: any): Promise<import("../entities/tasks.entity").Tasks[]>;
     createProject(createProjecDto: CreateProjectDto, req: any): Promise<import("../entities/projects.entity").Projects>;

@@ -62,10 +62,65 @@ let TaskService = class TaskService {
         if (!project)
             throw new common_1.NotFoundException('Project not found');
         const isEmployee = roleName === 'Employee';
+        const isManager = roleName === 'Manager';
+        const isOwner = roleName === 'Owner';
+        const today = new Date();
+        today.setHours(0, 0, 0, 0);
         const tasks = await this.taskRepo.find({
             where: isEmployee
-                ? { project: { id: projectId }, assignedTo: { id: authUser.id } }
-                : { project: { id: projectId } },
+                ? {
+                    project: { id: projectId },
+                    assignedTo: { id: authUser.id },
+                    startTime: (0, typeorm_3.MoreThanOrEqual)(today),
+                }
+                : isManager
+                    ? {
+                        project: { id: projectId },
+                        startTime: (0, typeorm_3.MoreThanOrEqual)(today),
+                    }
+                    : isOwner
+                        ? {
+                            project: { id: projectId },
+                            startTime: (0, typeorm_3.MoreThanOrEqual)(today),
+                        }
+                        : { project: { id: projectId } },
+            relations: ['project', 'assignedTo', 'log', 'log.images'],
+            order: { id: 'DESC' },
+        });
+        return tasks;
+    }
+    async getLogsByProjectId(projectId, authUser) {
+        this.checkAuth(authUser);
+        const roleName = authUser.role?.name;
+        if (!roleName || !['Manager', 'Employee', 'Owner'].includes(roleName)) {
+            throw new common_1.UnauthorizedException('Only Manager, Owner, and Employee roles can access this feature');
+        }
+        if (projectId === null || projectId === undefined || Number.isNaN(Number(projectId))) {
+            throw new common_1.BadRequestException('Invalid project id');
+        }
+        const project = await this.projectRepo.findOne({ where: { id: Number(projectId) } });
+        if (!project)
+            throw new common_1.NotFoundException('Project not found');
+        const isEmployee = roleName === 'Employee';
+        const isManager = roleName === 'Manager';
+        const isOwner = roleName === 'Owner';
+        const today = new Date();
+        today.setHours(0, 0, 0, 0);
+        const tasks = await this.taskRepo.find({
+            where: isEmployee
+                ? {
+                    project: { id: projectId },
+                    assignedTo: { id: authUser.id },
+                }
+                : isManager
+                    ? {
+                        project: { id: projectId },
+                    }
+                    : isOwner
+                        ? {
+                            project: { id: projectId },
+                        }
+                        : { project: { id: projectId } },
             relations: ['project', 'assignedTo', 'log', 'log.images'],
             order: { id: 'DESC' },
         });
@@ -474,6 +529,7 @@ let TaskService = class TaskService {
         const sortOrder = 'DESC';
         const isUpcomingSort = sortBy === 'startTime';
         const isUpcomingEnd = sortBy === 'endTime';
+        const isCreatedAtSort = sortBy === 'createdAt';
         const now = new Date();
         const startOfToday = new Date();
         startOfToday.setHours(0, 0, 0, 0);
@@ -494,6 +550,9 @@ let TaskService = class TaskService {
         }
         else if (isUpcomingEnd) {
             where.endTime = (0, typeorm_3.Between)(startOfToday, endOfToday);
+        }
+        else if (isCreatedAtSort) {
+            where.createdAt = (0, typeorm_3.MoreThanOrEqual)(startOfToday);
         }
         const tasks = await this.taskRepo.find({
             where,

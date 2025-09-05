@@ -189,7 +189,8 @@ export class ProjectService {
     let projects;
 
     if (authUser.role.name === 'Manager') {
-      // For Managers, fetch projects where they are assigned
+
+     
       projects = await this.projectRepo.find({
         where: {
           assignedTo: { id: authUser.id },
@@ -204,8 +205,11 @@ export class ProjectService {
           id: 'DESC', // Newest projects first
         },
       });
+
     } else if (authUser.role.name === 'Owner') {
-      // For Owners, fetch projects from their own company
+      
+     
+      
       const ownerUser = await this.userRepo.findOne({
         where: { id: authUser.id },
         relations: ['company'],
@@ -231,6 +235,93 @@ export class ProjectService {
           id: 'DESC', // Newest projects first
         },
       });
+
+    } else if (authUser.role.name === 'Employee') {
+      // For Employees, fetch projects that have tasks assigned to them
+      projects = await this.projectRepo.find({
+        where: {
+          tasks: {
+            assignedTo: { id: authUser.id },
+          },
+        },
+        relations: [
+          'tasks',
+          'tasks.assignedTo',
+          'tasks.log',
+          'tasks.log.images',
+        ],
+        order: {
+          id: 'DESC', // Newest projects first
+        },
+      });
+    } else {
+      // For Admins, fetch all projects
+      projects = await this.projectRepo.find({
+        relations: ['tasks', 'tasks.assignedTo'],
+        order: {
+          id: 'DESC', // Newest projects first
+        },
+      });
+    }
+
+    return projects;
+  }
+  async getProjectsforLogsSearching(authUser: AuthenticatedUser) {
+    this.checkAdmin(authUser);
+
+    let projects;
+
+    if (authUser.role.name === 'Manager') {
+
+      const today = new Date();
+      today.setHours(0, 0, 0, 0); // Start of today
+      
+      projects = await this.projectRepo.find({
+        where: {
+          assignedTo: { id: authUser.id },
+        },
+        relations: [
+          'tasks',
+          'tasks.assignedTo',
+          'tasks.log',
+          'tasks.log.images',
+        ],
+        order: {
+          id: 'DESC', // Newest projects first
+        },
+      });
+
+    } else if (authUser.role.name === 'Owner') {
+      
+      const today = new Date();
+      today.setHours(0, 0, 0, 0); // Start of today
+      
+      const ownerUser = await this.userRepo.findOne({
+        where: { id: authUser.id },
+        relations: ['company'],
+      });
+
+      if (!ownerUser?.company) {
+        throw new BadRequestException(
+          'Owner must be associated with a company',
+        );
+      }
+
+      projects = await this.projectRepo.find({
+        where: {
+          company: { id: ownerUser.company.id },
+        },
+        relations: [
+          'tasks',
+          'tasks.assignedTo',
+          'tasks.log',
+          'tasks.log.images',
+        ],
+        order: {
+          id: 'DESC', // Newest projects first
+        },
+      });
+
     } else if (authUser.role.name === 'Employee') {
       // For Employees, fetch projects that have tasks assigned to them
       projects = await this.projectRepo.find({
@@ -268,8 +359,18 @@ export class ProjectService {
 
     let project;
     if (roleName === 'Manager') {
+      // For Managers, only show tasks with startTime today or in the future
+      const today = new Date();
+      today.setHours(0, 0, 0, 0); // Start of today
+      
       project = await this.projectRepo.findOne({
-        where: { id: id, assignedTo: { id: authUser.id } },
+        where: { 
+          id: id, 
+          assignedTo: { id: authUser.id },
+          tasks: {
+            startTime: MoreThanOrEqual(today), // Only tasks starting today or later
+          },
+        },
         relations: [
           'owner',
           'company',
@@ -282,8 +383,18 @@ export class ProjectService {
         ],
       });
     } else if (roleName === 'Employee') {
+      // For Employees, only show tasks with startTime today or in the future
+      const today = new Date();
+      today.setHours(0, 0, 0, 0); // Start of today
+      
       project = await this.projectRepo.findOne({
-        where: { id: id, tasks: { assignedTo: { id: authUser.id } } },
+        where: { 
+          id: id, 
+          tasks: { 
+            assignedTo: { id: authUser.id },
+            startTime: MoreThanOrEqual(today), // Only tasks starting today or later
+          } 
+        },
         relations: [
           'owner',
           'company',
@@ -314,12 +425,7 @@ export class ProjectService {
     createProjectDto: CreateProjectDto,
     authUser: AuthenticatedUser,
   ) {
-    /*
-      Change Summary (MCP Context 7):
-      - What: Support assigning a project to a Manager during creation, enforcing same-company rule.
-      - Why: Ensure projects are only assigned to Managers within the same company, preventing cross-company assignments.
-      - Related: Uses `Projects.assignedTo` relation and validates via `Users.role` and `Users.company`.
-    */
+    
     this.checkAdmin(authUser);
     const {
       name,
@@ -376,8 +482,11 @@ export class ProjectService {
     // --- Validation: Start date cannot be in the past ---
     if (startDate) {
       const start = new Date(startDate);
-      const now = new Date();
-      if (start.getTime() < now.getTime()) {
+      const today = new Date();
+      today.setHours(0, 0, 0, 0); // Set to start of today
+      start.setHours(0, 0, 0, 0); // Set to start of the start date
+      
+      if (start.getTime() < today.getTime()) {
         throw new BadRequestException('Start date cannot be in the past');
       }
     }

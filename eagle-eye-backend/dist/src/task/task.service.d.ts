@@ -22,6 +22,7 @@ export declare class TaskService {
     private checkAdmin;
     private checkManagerAndEmployee;
     getTaskByProjectId(projectId: number, authUser: AuthenticatedUser): Promise<Tasks[]>;
+    getLogsByProjectId(projectId: number, authUser: AuthenticatedUser): Promise<Tasks[]>;
     getTask(authUser: AuthenticatedUser): Promise<Tasks[]>;
     getTodaysTask(authUser: AuthenticatedUser): Promise<Tasks[]>;
     getEmployeesToAssingeTask(authUser: AuthenticatedUser): Promise<any>;

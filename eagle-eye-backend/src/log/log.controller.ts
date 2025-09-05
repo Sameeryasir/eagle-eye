@@ -10,11 +10,19 @@ import { AuthGuard } from '@nestjs/passport';
 export class LogController {
   constructor(private readonly logService: LogService) {}
 
-  @Get()
+  @Get(':projectId')
   @UseGuards(AuthGuard('jwt'))
-  async getLogs(@Request() req) {
+  async getLogs(@Param('projectId') projectId: string, @Request() req) {
     const user = req.user;
-    const logs = await this.logService.getLogs(user);
+    const logs = await this.logService.getLogs(user, Number(projectId));
+    return logs;
+  }
+
+  @Get('owner/recent/:projectId')
+  @UseGuards(AuthGuard('jwt'))
+  async getRecentLogsForOwner(@Param('projectId') projectId: string, @Request() req) {
+    const user = req.user;
+    const logs = await this.logService.getRecentLogsForOwner(user, Number(projectId));
     return logs;
   }
 
@@ -32,7 +40,7 @@ export class LogController {
     return newLog;
   }
 
-  @Get(':id')
+  @Get('singleLog/:id')
   @UseGuards(AuthGuard('jwt'))
   async getLogById(@Param('id') id: string, @Request() req) {
     const user = req.user;

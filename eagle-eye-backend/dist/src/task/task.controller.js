@@ -53,6 +53,15 @@ let TaskController = class TaskController {
         const tasks = await this.taskService.getTaskByProjectId(projectId, user);
         return tasks;
     }
+    async getLogsByProjectId(id, req) {
+        const user = req.user;
+        const projectId = Number(id);
+        if (Number.isNaN(projectId)) {
+            throw new common_1.BadRequestException('Invalid project id');
+        }
+        const tasks = await this.taskService.getLogsByProjectId(projectId, user);
+        return tasks;
+    }
     async filterTasks(body, req) {
         const user = req.user;
         const tasks = await this.taskService.filterTasks(body, user);
@@ -125,6 +134,15 @@ __decorate([
     __metadata("design:paramtypes", [String, Object]),
     __metadata("design:returntype", Promise)
 ], TaskController.prototype, "getTaskByProjectId", null);
+__decorate([
+    (0, common_1.Get)('logs-filter/:id'),
+    (0, common_1.UseGuards)((0, passport_1.AuthGuard)('jwt')),
+    __param(0, (0, common_1.Param)('id')),
+    __param(1, (0, common_1.Request)()),
+    __metadata("design:type", Function),
+    __metadata("design:paramtypes", [String, Object]),
+    __metadata("design:returntype", Promise)
+], TaskController.prototype, "getLogsByProjectId", null);
 __decorate([
     (0, common_1.Post)('filter'),
     (0, common_1.UseGuards)((0, passport_1.AuthGuard)('jwt')),

@@ -10,6 +10,7 @@ export declare class TaskController {
     getTaskById(id: string, req: any): Promise<import("../entities/tasks.entity").Tasks>;
     getTodaysTask(req: any): Promise<import("../entities/tasks.entity").Tasks[]>;
     getTaskByProjectId(id: string, req: any): Promise<import("../entities/tasks.entity").Tasks[]>;
+    getLogsByProjectId(id: string, req: any): Promise<import("../entities/tasks.entity").Tasks[]>;
     filterTasks(body: TaskFilterDto, req: any): Promise<import("../entities/tasks.entity").Tasks[]>;
     createTask(createTaskDto: CreateTaskDto, req: any): Promise<import("../entities/tasks.entity").Tasks>;
     updateTask(id: string, updateTaskDto: UpdateTaskDto, req: any): Promise<import("../entities/tasks.entity").Tasks>;
