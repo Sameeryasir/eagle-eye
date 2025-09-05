@@ -193,7 +193,9 @@ export class ProjectService {
      
       projects = await this.projectRepo.find({
         where: {
-          assignedTo: { id: authUser.id },
+          tasks: {
+            assignedTo: { id: authUser.id },
+          },
         },
         relations: [
           'tasks',
@@ -366,16 +368,16 @@ export class ProjectService {
       project = await this.projectRepo.findOne({
         where: { 
           id: id, 
-          assignedTo: { id: authUser.id },
-          tasks: {
+          tasks: { 
+            assignedTo: { id: authUser.id },
             startTime: MoreThanOrEqual(today), // Only tasks starting today or later
-          },
+            log: IsNull(), // Exclude tasks that have logs created against them
+          } 
         },
         relations: [
           'owner',
           'company',
           'company.owner',
-          'assignedTo',
           'tasks',
           'tasks.assignedTo',
           'tasks.log',
@@ -393,6 +395,7 @@ export class ProjectService {
           tasks: { 
             assignedTo: { id: authUser.id },
             startTime: MoreThanOrEqual(today), // Only tasks starting today or later
+            log: IsNull(), // Exclude tasks that have logs created against them
           } 
         },
         relations: [

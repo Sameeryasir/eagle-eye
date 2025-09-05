@@ -17,6 +17,7 @@ class TaskFilterDto {
     assignedTo;
     email;
     unassigned;
+    closedTask;
 }
 exports.TaskFilterDto = TaskFilterDto;
 __decorate([
@@ -44,4 +45,9 @@ __decorate([
     (0, class_validator_1.IsBoolean)(),
     __metadata("design:type", Boolean)
 ], TaskFilterDto.prototype, "unassigned", void 0);
+__decorate([
+    (0, class_validator_1.IsOptional)(),
+    (0, class_validator_1.IsBoolean)(),
+    __metadata("design:type", Boolean)
+], TaskFilterDto.prototype, "closedTask", void 0);
 //# sourceMappingURL=task-filter.dto.js.map

@@ -7,7 +7,7 @@ import {
 } from '@nestjs/common';
 import { InjectRepository } from '@nestjs/typeorm';
 import { Tasks } from 'src/entities/tasks.entity';
-import { Admin, Auth, Repository } from 'typeorm';
+import { Admin, Auth, LessThan, Repository } from 'typeorm';
 import { CreateTaskDto } from './taskDto/create-task.dto';
 import { Roles } from 'src/entities/roles.entity';
 import { Users } from 'src/entities/users.entity';
@@ -92,16 +92,19 @@ async getTaskByProjectId(projectId: number, authUser: AuthenticatedUser) {
           project: { id: projectId }, 
           assignedTo: { id: authUser.id },
           startTime: MoreThanOrEqual(today), // Only tasks starting today or later
+          log: IsNull(), // Exclude tasks that have logs created against them
         }
       : isManager
       ? {
           project: { id: projectId },
           startTime: MoreThanOrEqual(today), // Only tasks starting today or later
+          log: IsNull(), // Exclude tasks that have logs created against them
         }
       : isOwner
       ? {
           project: { id: projectId },
           startTime: MoreThanOrEqual(today), // Only tasks starting today or later
+          log: IsNull(), // Exclude tasks that have logs created against them
         }
       : { project: { id: projectId } }, // Fallback (should not reach here due to auth check)
     relations: ['project', 'assignedTo', 'log', 'log.images'],
@@ -296,7 +299,7 @@ async getLogsByProjectId(projectId: number, authUser: AuthenticatedUser) {
     if (startTime && minStartTime) {
       const startDate = new Date(startTime);
       const minStart = new Date(minStartTime);
-      if (startDate < minStart) {
+      if (startDate <= minStart) {
         throw new BadRequestException('Start time cannot be before the draft start time');
       }
     }
@@ -757,6 +760,11 @@ async getLogsByProjectId(projectId: number, authUser: AuthenticatedUser) {
     } else if (filter.email) {
       // Filter by assignee email when provided
       where.assignedTo = { email: filter.email };
+    }
+    
+    // Filter for closed tasks (tasks with startTime in the past)
+    if (filter.closedTask === true) {
+      where.startTime = LessThan(now); // Only tasks that started before now
     }
     if (isUpcomingSort) {
       // Only include tasks that start now or later to reflect "upcoming"

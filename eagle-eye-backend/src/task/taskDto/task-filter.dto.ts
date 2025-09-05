@@ -27,4 +27,8 @@ export class TaskFilterDto {
   @IsOptional()
   @IsBoolean()
   unassigned?: boolean;
+
+  @IsOptional()
+  @IsBoolean()
+  closedTask?: boolean;
 }

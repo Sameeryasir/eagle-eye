@@ -128,7 +128,9 @@ let ProjectService = class ProjectService {
         if (authUser.role.name === 'Manager') {
             projects = await this.projectRepo.find({
                 where: {
-                    assignedTo: { id: authUser.id },
+                    tasks: {
+                        assignedTo: { id: authUser.id },
+                    },
                 },
                 relations: [
                     'tasks',
@@ -276,16 +278,16 @@ let ProjectService = class ProjectService {
             project = await this.projectRepo.findOne({
                 where: {
                     id: id,
-                    assignedTo: { id: authUser.id },
                     tasks: {
+                        assignedTo: { id: authUser.id },
                         startTime: (0, typeorm_2.MoreThanOrEqual)(today),
-                    },
+                        log: (0, typeorm_2.IsNull)(),
+                    }
                 },
                 relations: [
                     'owner',
                     'company',
                     'company.owner',
-                    'assignedTo',
                     'tasks',
                     'tasks.assignedTo',
                     'tasks.log',
@@ -302,6 +304,7 @@ let ProjectService = class ProjectService {
                     tasks: {
                         assignedTo: { id: authUser.id },
                         startTime: (0, typeorm_2.MoreThanOrEqual)(today),
+                        log: (0, typeorm_2.IsNull)(),
                     }
                 },
                 relations: [

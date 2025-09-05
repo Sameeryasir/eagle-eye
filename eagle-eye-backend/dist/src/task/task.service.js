@@ -72,16 +72,19 @@ let TaskService = class TaskService {
                     project: { id: projectId },
                     assignedTo: { id: authUser.id },
                     startTime: (0, typeorm_3.MoreThanOrEqual)(today),
+                    log: (0, typeorm_3.IsNull)(),
                 }
                 : isManager
                     ? {
                         project: { id: projectId },
                         startTime: (0, typeorm_3.MoreThanOrEqual)(today),
+                        log: (0, typeorm_3.IsNull)(),
                     }
                     : isOwner
                         ? {
                             project: { id: projectId },
                             startTime: (0, typeorm_3.MoreThanOrEqual)(today),
+                            log: (0, typeorm_3.IsNull)(),
                         }
                         : { project: { id: projectId } },
             relations: ['project', 'assignedTo', 'log', 'log.images'],
@@ -221,7 +224,7 @@ let TaskService = class TaskService {
         if (startTime && minStartTime) {
             const startDate = new Date(startTime);
             const minStart = new Date(minStartTime);
-            if (startDate < minStart) {
+            if (startDate <= minStart) {
                 throw new common_1.BadRequestException('Start time cannot be before the draft start time');
             }
         }
@@ -544,6 +547,9 @@ let TaskService = class TaskService {
         }
         else if (filter.email) {
             where.assignedTo = { email: filter.email };
+        }
+        if (filter.closedTask === true) {
+            where.startTime = (0, typeorm_2.LessThan)(now);
         }
         if (isUpcomingSort) {
             where.startTime = (0, typeorm_3.MoreThanOrEqual)(now);

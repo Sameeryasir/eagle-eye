@@ -4,4 +4,5 @@ export declare class TaskFilterDto {
     assignedTo?: 'me';
     email?: string;
     unassigned?: boolean;
+    closedTask?: boolean;
 }
