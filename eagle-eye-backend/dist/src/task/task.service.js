@@ -549,7 +549,7 @@ let TaskService = class TaskService {
             where.assignedTo = { email: filter.email };
         }
         if (filter.closedTask === true) {
-            where.startTime = (0, typeorm_2.LessThan)(startOfToday);
+            where.endTime = (0, typeorm_2.LessThan)(startOfToday);
         }
         if (isUpcomingSort) {
             where.startTime = (0, typeorm_3.MoreThanOrEqual)(now);
@@ -558,7 +558,6 @@ let TaskService = class TaskService {
             where.endTime = (0, typeorm_3.Between)(startOfToday, endOfToday);
         }
         else if (isCreatedAtSort) {
-            where.createdAt = (0, typeorm_3.MoreThanOrEqual)(startOfToday);
         }
         const tasks = await this.taskRepo.find({
             where,
@@ -567,7 +566,9 @@ let TaskService = class TaskService {
                 ? { startTime: 'ASC' }
                 : isUpcomingEnd
                     ? { endTime: 'ASC' }
-                    : { [sortBy]: sortOrder },
+                    : isCreatedAtSort
+                        ? { createdAt: 'DESC' }
+                        : { [sortBy]: sortOrder },
         });
         return tasks;
     }

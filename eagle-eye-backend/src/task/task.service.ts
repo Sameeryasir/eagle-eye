@@ -764,7 +764,7 @@ async getLogsByProjectId(projectId: number, authUser: AuthenticatedUser) {
     
     // Filter for closed tasks (tasks that started before today - past tasks)
     if (filter.closedTask === true) {
-      where.startTime = LessThan(startOfToday); // Only tasks that started before today
+      where.endTime = LessThan(startOfToday); // Only tasks that started before today
     }
     if (isUpcomingSort) {
       // Only include tasks that start now or later to reflect "upcoming"
@@ -773,7 +773,7 @@ async getLogsByProjectId(projectId: number, authUser: AuthenticatedUser) {
       // When user selects endTime, show tasks ending today only
       where.endTime = Between(startOfToday, endOfToday);
     } else if (isCreatedAtSort) {
-      where.createdAt = MoreThanOrEqual(startOfToday);
+      // No time filtering for createdAt sort - show all tasks
     }
 
     const tasks = await this.taskRepo.find({
@@ -783,6 +783,8 @@ async getLogsByProjectId(projectId: number, authUser: AuthenticatedUser) {
         ? { startTime: 'ASC' }
         : isUpcomingEnd
         ? { endTime: 'ASC' }
+        : isCreatedAtSort
+        ? { createdAt: 'DESC' }
         : { [sortBy]: sortOrder },
     });
 
