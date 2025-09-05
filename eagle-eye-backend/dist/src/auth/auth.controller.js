@@ -22,6 +22,9 @@ let AuthController = class AuthController {
     constructor(authService) {
         this.authService = authService;
     }
+    async getHelloworld() {
+        return { messege: 'helloworld' };
+    }
     async sendOtp(dto) {
         console.log(dto);
         return this.authService.sendOtp(dto.email, dto.phone);
@@ -37,6 +40,12 @@ let AuthController = class AuthController {
     }
 };
 exports.AuthController = AuthController;
+__decorate([
+    (0, common_1.Get)('helloworld'),
+    __metadata("design:type", Function),
+    __metadata("design:paramtypes", []),
+    __metadata("design:returntype", Promise)
+], AuthController.prototype, "getHelloworld", null);
 __decorate([
     (0, common_1.Post)('send-otp'),
     __param(0, (0, common_1.Body)(common_1.ValidationPipe)),

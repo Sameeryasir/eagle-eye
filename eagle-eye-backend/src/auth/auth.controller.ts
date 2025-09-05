@@ -1,4 +1,11 @@
-import { BadRequestException, Body, Controller, Post, ValidationPipe } from '@nestjs/common';
+import {
+  BadRequestException,
+  Body,
+  Controller,
+  Get,
+  Post,
+  ValidationPipe,
+} from '@nestjs/common';
 import { AuthService } from './auth.service';
 import { SendOtpDto } from './authDto/send-otp.dto';
 import { VerifyOtpDto } from './authDto/verify-otp.dto';
@@ -6,6 +13,10 @@ import { VerifyOtpDto } from './authDto/verify-otp.dto';
 export class AuthController {
   constructor(private readonly authService: AuthService) {}
 
+  @Get('helloworld')
+  async getHelloworld() {
+    return { messege: 'helloworld' };
+  }
   @Post('send-otp')
   async sendOtp(@Body(ValidationPipe) dto: SendOtpDto) {
     console.log(dto);
@@ -14,9 +25,9 @@ export class AuthController {
 
   @Post('verify-otp')
   async verifyOtp(@Body(ValidationPipe) dto: VerifyOtpDto) {
-    return this.authService.verifyOtp( dto.code,dto.email,dto.phone);
+    return this.authService.verifyOtp(dto.code, dto.email, dto.phone);
   }
-   @Post('refresh-token')
+  @Post('refresh-token')
   async refreshToken(@Body('refreshToken') refreshToken: string) {
     if (!refreshToken) {
       throw new BadRequestException('Refresh token is required');

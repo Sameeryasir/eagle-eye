@@ -4,6 +4,9 @@ import { VerifyOtpDto } from './authDto/verify-otp.dto';
 export declare class AuthController {
     private readonly authService;
     constructor(authService: AuthService);
+    getHelloworld(): Promise<{
+        messege: string;
+    }>;
     sendOtp(dto: SendOtpDto): Promise<{
         message: string;
     }>;
