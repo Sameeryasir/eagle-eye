@@ -55,10 +55,14 @@ let TaskService = class TaskService {
         if (!roleName || !['Manager', 'Employee', 'Owner'].includes(roleName)) {
             throw new common_1.UnauthorizedException('Only Manager, Owner, and Employee roles can access this feature');
         }
-        if (projectId === null || projectId === undefined || Number.isNaN(Number(projectId))) {
+        if (projectId === null ||
+            projectId === undefined ||
+            Number.isNaN(Number(projectId))) {
             throw new common_1.BadRequestException('Invalid project id');
         }
-        const project = await this.projectRepo.findOne({ where: { id: Number(projectId) } });
+        const project = await this.projectRepo.findOne({
+            where: { id: Number(projectId) },
+        });
         if (!project)
             throw new common_1.NotFoundException('Project not found');
         const isEmployee = roleName === 'Employee';
@@ -98,10 +102,14 @@ let TaskService = class TaskService {
         if (!roleName || !['Manager', 'Employee', 'Owner'].includes(roleName)) {
             throw new common_1.UnauthorizedException('Only Manager, Owner, and Employee roles can access this feature');
         }
-        if (projectId === null || projectId === undefined || Number.isNaN(Number(projectId))) {
+        if (projectId === null ||
+            projectId === undefined ||
+            Number.isNaN(Number(projectId))) {
             throw new common_1.BadRequestException('Invalid project id');
         }
-        const project = await this.projectRepo.findOne({ where: { id: Number(projectId) } });
+        const project = await this.projectRepo.findOne({
+            where: { id: Number(projectId) },
+        });
         if (!project)
             throw new common_1.NotFoundException('Project not found');
         const isEmployee = roleName === 'Employee';
@@ -130,16 +138,35 @@ let TaskService = class TaskService {
         return tasks;
     }
     async getTask(authUser) {
+        const roleName = authUser.role?.name;
+        let whereCondition;
+        if (roleName === 'Employee') {
+            whereCondition = {
+                assignedTo: { id: authUser.id },
+            };
+        }
+        else if (roleName === 'Manager') {
+            whereCondition = {
+                assignedTo: { id: authUser.id },
+            };
+        }
+        else if (roleName === 'Owner') {
+            whereCondition = {
+                project: {
+                    company: {
+                        owner: { id: authUser.id },
+                    },
+                },
+            };
+        }
+        else {
+            whereCondition = {
+                assignedTo: { id: authUser.id },
+            };
+        }
         const tasks = await this.taskRepo.find({
-            where: [
-                {
-                    assignedTo: { id: authUser.id },
-                },
-                {
-                    assignedTo: { id: authUser.id },
-                },
-            ],
-            relations: ['project', 'assignedTo', 'log', 'log.images'],
+            where: whereCondition,
+            relations: ['project', 'assignedTo', 'log', 'log.images', 'project.company', 'project.company.owner'],
             order: { id: 'DESC' },
         });
         return tasks;
@@ -166,14 +193,14 @@ let TaskService = class TaskService {
         if (authUser.role.name === 'Owner') {
             company = await this.companyRepo.findOne({
                 where: {
-                    owner: { id: authUser.id }
-                }
+                    owner: { id: authUser.id },
+                },
             });
         }
         else if (authUser.role.name === 'Manager') {
             const managerUser = await this.userRepo.findOne({
                 where: { id: authUser.id },
-                relations: ['company']
+                relations: ['company'],
             });
             if (!managerUser?.company) {
                 throw new common_1.NotFoundException('Manager must be associated with a company');
@@ -191,10 +218,10 @@ let TaskService = class TaskService {
             employees = await this.userRepo.find({
                 where: {
                     company: { id: company.id },
-                    role: { name: 'Employee' }
+                    role: { name: 'Employee' },
                 },
                 relations: ['role'],
-                select: ['id', 'first_name', 'last_name', 'email', 'phone']
+                select: ['id', 'first_name', 'last_name', 'email', 'phone'],
             });
         }
         else if (authUser.role.name === 'Owner') {
@@ -202,15 +229,15 @@ let TaskService = class TaskService {
                 where: [
                     {
                         company: { id: company.id },
-                        role: { name: 'Employee' }
+                        role: { name: 'Employee' },
                     },
                     {
                         company: { id: company.id },
-                        role: { name: 'Manager' }
-                    }
+                        role: { name: 'Manager' },
+                    },
                 ],
                 relations: ['role'],
-                select: ['id', 'first_name', 'last_name', 'email', 'phone']
+                select: ['id', 'first_name', 'last_name', 'email', 'phone'],
             });
         }
         return employees;
@@ -224,7 +251,7 @@ let TaskService = class TaskService {
         if (startTime && minStartTime) {
             const startDate = new Date(startTime);
             const minStart = new Date(minStartTime);
-            if (startDate <= minStart) {
+            if (startDate < minStart) {
                 throw new common_1.BadRequestException('Start time cannot be before the draft start time');
             }
         }
@@ -450,7 +477,8 @@ let TaskService = class TaskService {
             if (!newAssignedUser) {
                 throw new common_1.BadRequestException('Invalid assigned user ID');
             }
-            if (newAssignedUser.role?.name !== 'Employee' && newAssignedUser.role?.name !== 'Manager') {
+            if (newAssignedUser.role?.name !== 'Employee' &&
+                newAssignedUser.role?.name !== 'Manager') {
                 throw new common_1.BadRequestException('Task can only be assigned to an Employee or Manager');
             }
             if (roleName === 'Owner') {
@@ -503,7 +531,10 @@ let TaskService = class TaskService {
         if (!task) {
             throw new common_1.NotFoundException('Task not found');
         }
-        const assignee = await this.userRepo.findOne({ where: { id: assignedToUserId }, relations: ['role'] });
+        const assignee = await this.userRepo.findOne({
+            where: { id: assignedToUserId },
+            relations: ['role'],
+        });
         if (!assignee) {
             throw new common_1.BadRequestException('Invalid assigned user ID');
         }
@@ -514,7 +545,8 @@ let TaskService = class TaskService {
         return await this.taskRepo.save(task);
     }
     async getTaskById(id, authUser) {
-        if (!authUser?.role?.name || !['Owner', 'Manager', 'Employee'].includes(authUser.role.name)) {
+        if (!authUser?.role?.name ||
+            !['Owner', 'Manager', 'Employee'].includes(authUser.role.name)) {
             throw new common_1.UnauthorizedException('Only Owner, Manager, and Employee roles can access this feature');
         }
         const task = await this.taskRepo.findOne({
@@ -550,6 +582,9 @@ let TaskService = class TaskService {
         }
         if (filter.closedTask === true) {
             where.endTime = (0, typeorm_2.LessThan)(startOfToday);
+            if (authUser.role?.name === 'Employee') {
+                where.assignedTo = { id: authUser.id };
+            }
         }
         if (isUpcomingSort) {
             where.startTime = (0, typeorm_3.MoreThanOrEqual)(now);

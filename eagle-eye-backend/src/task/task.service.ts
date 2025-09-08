@@ -14,7 +14,13 @@ import { Users } from 'src/entities/users.entity';
 import { Projects } from 'src/entities/projects.entity';
 import { UpdateTaskDto } from './taskDto/update-task.dto';
 import { retry } from 'rxjs';
-import { MoreThanOrEqual, LessThanOrEqual, Not, IsNull, Between } from 'typeorm';
+import {
+  MoreThanOrEqual,
+  LessThanOrEqual,
+  Not,
+  IsNull,
+  Between,
+} from 'typeorm';
 import { Companies } from 'src/entities/companies.entity';
 import { TaskFilterDto } from './taskDto/task-filter.dto';
 interface AuthenticatedUser {
@@ -28,7 +34,7 @@ export class TaskService {
     @InjectRepository(Tasks) private taskRepo: Repository<Tasks>,
     @InjectRepository(Users) private userRepo: Repository<Users>,
     @InjectRepository(Projects) private projectRepo: Repository<Projects>,
-    @InjectRepository(Companies) private companyRepo :Repository<Companies>
+    @InjectRepository(Companies) private companyRepo: Repository<Companies>,
   ) {}
   private checkAuth(user: AuthenticatedUser) {
     if (!user || !user.id) {
@@ -55,130 +61,160 @@ export class TaskService {
     }
   }
 
+  async getTaskByProjectId(projectId: number, authUser: AuthenticatedUser) {
+    // --- Authentication Step ---
+    this.checkAuth(authUser);
 
-async getTaskByProjectId(projectId: number, authUser: AuthenticatedUser) {
+    // --- Authorization Step ---
+    const roleName = authUser.role?.name;
+    if (!roleName || !['Manager', 'Employee', 'Owner'].includes(roleName)) {
+      throw new UnauthorizedException(
+        'Only Manager, Owner, and Employee roles can access this feature',
+      );
+    }
 
+    // --- Validation Step ---
+    // Input validation to avoid invalid integer usage downstream
+    if (
+      projectId === null ||
+      projectId === undefined ||
+      Number.isNaN(Number(projectId))
+    ) {
+      throw new BadRequestException('Invalid project id');
+    }
+    const project = await this.projectRepo.findOne({
+      where: { id: Number(projectId) },
+    });
+    if (!project) throw new NotFoundException('Project not found');
 
-  // --- Authentication Step ---
-  this.checkAuth(authUser);
+    // --- Data Fetch (Business Rule) ---
+    // All roles: fetch tasks with startTime today or in the future (no past tasks for any role)
+    const isEmployee = roleName === 'Employee';
+    const isManager = roleName === 'Manager';
+    const isOwner = roleName === 'Owner';
 
-  // --- Authorization Step ---
-  const roleName = authUser.role?.name;
-  if (!roleName || !['Manager', 'Employee', 'Owner'].includes(roleName)) {
-    throw new UnauthorizedException('Only Manager, Owner, and Employee roles can access this feature');
-  }
+    // For all roles, only show tasks with startTime today or in the future
+    const today = new Date();
+    today.setHours(0, 0, 0, 0); // Start of today
 
-  // --- Validation Step ---
-  // Input validation to avoid invalid integer usage downstream
-  if (projectId === null || projectId === undefined || Number.isNaN(Number(projectId))) {
-    throw new BadRequestException('Invalid project id');
-  }
-  const project = await this.projectRepo.findOne({ where: { id: Number(projectId) } });
-  if (!project) throw new NotFoundException('Project not found');
-
-  // --- Data Fetch (Business Rule) ---
-  // All roles: fetch tasks with startTime today or in the future (no past tasks for any role)
-  const isEmployee = roleName === 'Employee';
-  const isManager = roleName === 'Manager';
-  const isOwner = roleName === 'Owner';
-  
-  // For all roles, only show tasks with startTime today or in the future
-  const today = new Date();
-  today.setHours(0, 0, 0, 0); // Start of today
-  
-  const tasks = await this.taskRepo.find({
-    where: isEmployee
-      ? { 
-          project: { id: projectId }, 
-          assignedTo: { id: authUser.id },
-          startTime: MoreThanOrEqual(today), // Only tasks starting today or later
-          log: IsNull(), // Exclude tasks that have logs created against them
-        }
-      : isManager
-      ? {
-          project: { id: projectId },
-          startTime: MoreThanOrEqual(today), // Only tasks starting today or later
-          log: IsNull(), // Exclude tasks that have logs created against them
-        }
-      : isOwner
-      ? {
-          project: { id: projectId },
-          startTime: MoreThanOrEqual(today), // Only tasks starting today or later
-          log: IsNull(), // Exclude tasks that have logs created against them
-        }
-      : { project: { id: projectId } }, // Fallback (should not reach here due to auth check)
-    relations: ['project', 'assignedTo', 'log', 'log.images'],
-    order: { id: 'DESC' },
-  });
-
-  return tasks;
-}
-
-async getLogsByProjectId(projectId: number, authUser: AuthenticatedUser) {
-
-
-  // --- Authentication Step ---
-  this.checkAuth(authUser);
-
-  // --- Authorization Step ---
-  const roleName = authUser.role?.name;
-  if (!roleName || !['Manager', 'Employee', 'Owner'].includes(roleName)) {
-    throw new UnauthorizedException('Only Manager, Owner, and Employee roles can access this feature');
-  }
-
-  // --- Validation Step ---
-  // Input validation to avoid invalid integer usage downstream
-  if (projectId === null || projectId === undefined || Number.isNaN(Number(projectId))) {
-    throw new BadRequestException('Invalid project id');
-  }
-  const project = await this.projectRepo.findOne({ where: { id: Number(projectId) } });
-  if (!project) throw new NotFoundException('Project not found');
-
-  // --- Data Fetch (Business Rule) ---
-  // All roles: fetch tasks with startTime today or in the future (no past tasks for any role)
-  const isEmployee = roleName === 'Employee';
-  const isManager = roleName === 'Manager';
-  const isOwner = roleName === 'Owner';
-  
-  // For all roles, only show tasks with startTime today or in the future
-  const today = new Date();
-  today.setHours(0, 0, 0, 0); // Start of today
-  
-  const tasks = await this.taskRepo.find({
-    where: isEmployee
-      ? { 
-          project: { id: projectId }, 
-          assignedTo: { id: authUser.id },
-        }
-      : isManager
-      ? {
-          project: { id: projectId },
-        }
-      : isOwner
-      ? {
-          project: { id: projectId },
-        }
-      : { project: { id: projectId } }, // Fallback (should not reach here due to auth check)
-    relations: ['project', 'assignedTo', 'log', 'log.images'],
-    order: { id: 'DESC' },
-  });
-
-  return tasks;
-}
-  async getTask(authUser: AuthenticatedUser) {
-    // Fetch only upcoming or ongoing tasks assigned to the current authenticated user
     const tasks = await this.taskRepo.find({
-      where: [
-        // Tasks starting in the future
-        {
-          assignedTo: { id: authUser.id },
-        },
-        // Tasks already started but not ended
-        {
-          assignedTo: { id: authUser.id },
-        },
-      ],
+      where: isEmployee
+        ? {
+            project: { id: projectId },
+            assignedTo: { id: authUser.id },
+            startTime: MoreThanOrEqual(today), // Only tasks starting today or later
+            log: IsNull(), // Exclude tasks that have logs created against them
+          }
+        : isManager
+          ? {
+              project: { id: projectId },
+              startTime: MoreThanOrEqual(today), // Only tasks starting today or later
+              log: IsNull(), // Exclude tasks that have logs created against them
+            }
+          : isOwner
+            ? {
+                project: { id: projectId },
+                startTime: MoreThanOrEqual(today), // Only tasks starting today or later
+                log: IsNull(), // Exclude tasks that have logs created against them
+              }
+            : { project: { id: projectId } }, // Fallback (should not reach here due to auth check)
       relations: ['project', 'assignedTo', 'log', 'log.images'],
+      order: { id: 'DESC' },
+    });
+
+    return tasks;
+  }
+
+  async getLogsByProjectId(projectId: number, authUser: AuthenticatedUser) {
+    // --- Authentication Step ---
+    this.checkAuth(authUser);
+
+    // --- Authorization Step ---
+    const roleName = authUser.role?.name;
+    if (!roleName || !['Manager', 'Employee', 'Owner'].includes(roleName)) {
+      throw new UnauthorizedException(
+        'Only Manager, Owner, and Employee roles can access this feature',
+      );
+    }
+
+    // --- Validation Step ---
+    // Input validation to avoid invalid integer usage downstream
+    if (
+      projectId === null ||
+      projectId === undefined ||
+      Number.isNaN(Number(projectId))
+    ) {
+      throw new BadRequestException('Invalid project id');
+    }
+    const project = await this.projectRepo.findOne({
+      where: { id: Number(projectId) },
+    });
+    if (!project) throw new NotFoundException('Project not found');
+
+    // --- Data Fetch (Business Rule) ---
+    // All roles: fetch tasks with startTime today or in the future (no past tasks for any role)
+    const isEmployee = roleName === 'Employee';
+    const isManager = roleName === 'Manager';
+    const isOwner = roleName === 'Owner';
+
+    // For all roles, only show tasks with startTime today or in the future
+    const today = new Date();
+    today.setHours(0, 0, 0, 0); // Start of today
+
+    const tasks = await this.taskRepo.find({
+      where: isEmployee
+        ? {
+            project: { id: projectId },
+            assignedTo: { id: authUser.id },
+          }
+        : isManager
+          ? {
+              project: { id: projectId },
+            }
+          : isOwner
+            ? {
+                project: { id: projectId },
+              }
+            : { project: { id: projectId } }, // Fallback (should not reach here due to auth check)
+      relations: ['project', 'assignedTo', 'log', 'log.images'],
+      order: { id: 'DESC' },
+    });
+
+    return tasks;
+  }
+  async getTask(authUser: AuthenticatedUser) {
+    const roleName = authUser.role?.name;
+    let whereCondition: any;
+
+    if (roleName === 'Employee') {
+      // Employee: Get all tasks assigned to them
+      whereCondition = {
+        assignedTo: { id: authUser.id },
+      };
+    } else if (roleName === 'Manager') {
+      // Manager: Get all tasks assigned to them
+      whereCondition = {
+        assignedTo: { id: authUser.id },
+      };
+    } else if (roleName === 'Owner') {
+      // Owner: Get all tasks from projects belonging to their company
+      whereCondition = {
+        project: {
+          company: {
+            owner: { id: authUser.id },
+          },
+        },
+      };
+    } else {
+      // Default: Get tasks assigned to the user
+      whereCondition = {
+        assignedTo: { id: authUser.id },
+      };
+    }
+
+    const tasks = await this.taskRepo.find({
+      where: whereCondition,
+      relations: ['project', 'assignedTo', 'log', 'log.images', 'project.company', 'project.company.owner'],
       order: { id: 'DESC' }, // Order by start time (earliest first)
     });
 
@@ -188,15 +224,15 @@ async getLogsByProjectId(projectId: number, authUser: AuthenticatedUser) {
   async getTodaysTask(authUser: AuthenticatedUser) {
     // --- Role Validation: Only Manager and Employee can access ---
     if (authUser.role.name !== 'Manager' && authUser.role.name !== 'Employee') {
-      throw new UnauthorizedException('Only Manager and Employee roles can access this feature');
+      throw new UnauthorizedException(
+        'Only Manager and Employee roles can access this feature',
+      );
     }
-    
-   
+
     // Fetch tasks created today (current date) assigned to the authenticated user
     const tasks = await this.taskRepo.find({
       where: {
         assignedTo: { id: authUser.id },
-
       },
       relations: ['project', 'assignedTo', 'log', 'log.images'],
       order: { createdAt: 'DESC' }, // Order by creation time (newest first)
@@ -206,35 +242,39 @@ async getLogsByProjectId(projectId: number, authUser: AuthenticatedUser) {
   }
   async getEmployeesToAssingeTask(authUser: AuthenticatedUser) {
     this.checkAdmin(authUser);
-    
+
     // Validate that authUser.id is a valid number
     if (!authUser.id || isNaN(authUser.id)) {
       throw new BadRequestException('Invalid user ID');
     }
 
     let company;
-    
+
     if (authUser.role.name === 'Owner') {
       // Find the company owned by the authenticated user
       company = await this.companyRepo.findOne({
         where: {
-          owner: { id: authUser.id }
-        }
+          owner: { id: authUser.id },
+        },
       });
     } else if (authUser.role.name === 'Manager') {
       // Find the company where the manager works
       const managerUser = await this.userRepo.findOne({
         where: { id: authUser.id },
-        relations: ['company']
+        relations: ['company'],
       });
-      
+
       if (!managerUser?.company) {
-        throw new NotFoundException('Manager must be associated with a company');
+        throw new NotFoundException(
+          'Manager must be associated with a company',
+        );
       }
-      
+
       company = managerUser.company;
     } else {
-      throw new ForbiddenException('Only Owners and Managers can fetch employees');
+      throw new ForbiddenException(
+        'Only Owners and Managers can fetch employees',
+      );
     }
 
     if (!company) {
@@ -243,16 +283,16 @@ async getLogsByProjectId(projectId: number, authUser: AuthenticatedUser) {
 
     // Fetch users based on role permissions
     let employees;
-    
+
     if (authUser.role.name === 'Manager') {
       // Managers can only see Employees in the dropdown
       employees = await this.userRepo.find({
         where: {
           company: { id: company.id },
-          role: { name: 'Employee' }
+          role: { name: 'Employee' },
         },
         relations: ['role'],
-        select: ['id', 'first_name', 'last_name', 'email', 'phone']
+        select: ['id', 'first_name', 'last_name', 'email', 'phone'],
       });
     } else if (authUser.role.name === 'Owner') {
       // Owners can see both Employees and Managers in the dropdown
@@ -260,21 +300,21 @@ async getLogsByProjectId(projectId: number, authUser: AuthenticatedUser) {
         where: [
           {
             company: { id: company.id },
-            role: { name: 'Employee' }
+            role: { name: 'Employee' },
           },
           {
             company: { id: company.id },
-            role: { name: 'Manager' }
-          }
+            role: { name: 'Manager' },
+          },
         ],
         relations: ['role'],
-        select: ['id', 'first_name', 'last_name', 'email', 'phone']
+        select: ['id', 'first_name', 'last_name', 'email', 'phone'],
       });
     }
 
     return employees;
   }
- async createTask(CreateTaskDto: CreateTaskDto, authUser: AuthenticatedUser) {
+  async createTask(CreateTaskDto: CreateTaskDto, authUser: AuthenticatedUser) {
     this.checkAdmin(authUser);
 
     const {
@@ -299,8 +339,10 @@ async getLogsByProjectId(projectId: number, authUser: AuthenticatedUser) {
     if (startTime && minStartTime) {
       const startDate = new Date(startTime);
       const minStart = new Date(minStartTime);
-      if (startDate <= minStart) {
-        throw new BadRequestException('Start time cannot be before the draft start time');
+      if (startDate < minStart) {
+        throw new BadRequestException(
+          'Start time cannot be before the draft start time',
+        );
       }
     }
     // Only enforce ordering between start and end if both provided
@@ -329,12 +371,14 @@ async getLogsByProjectId(projectId: number, authUser: AuthenticatedUser) {
       });
 
       if (existingTask) {
-        throw new BadRequestException('A task with the same time range already exists');
+        throw new BadRequestException(
+          'A task with the same time range already exists',
+        );
       }
     }
 
     let user: Users | null = null;
-    
+
     // Validate assigned user if provided
     if (assignedToUserId) {
       user = await this.userRepo.findOne({
@@ -347,7 +391,9 @@ async getLogsByProjectId(projectId: number, authUser: AuthenticatedUser) {
       }
 
       if (!['Employee', 'Manager'].includes(user.role?.name)) {
-        throw new BadRequestException('Task can only be assigned to an Employee or Manager');
+        throw new BadRequestException(
+          'Task can only be assigned to an Employee or Manager',
+        );
       }
 
       if (!user.company?.id) {
@@ -366,7 +412,7 @@ async getLogsByProjectId(projectId: number, authUser: AuthenticatedUser) {
     if (!project) {
       throw new NotFoundException('Project not found');
     }
-    
+
     // Only check company association for non-Admin roles
     if (authUser.role.name !== 'Admin' && !project.company?.id) {
       throw new BadRequestException(
@@ -418,7 +464,9 @@ async getLogsByProjectId(projectId: number, authUser: AuthenticatedUser) {
         }
 
         if (!['Employee', 'Manager'].includes(user.role?.name)) {
-          throw new BadRequestException('Task can only be assigned to an Employee or Manager');
+          throw new BadRequestException(
+            'Task can only be assigned to an Employee or Manager',
+          );
         }
       }
     }
@@ -435,7 +483,7 @@ async getLogsByProjectId(projectId: number, authUser: AuthenticatedUser) {
     });
 
     return await this.taskRepo.save(newTask);
-}
+  }
 
   async updateTaskById(
     updateTaskDto: UpdateTaskDto,
@@ -535,7 +583,9 @@ async getLogsByProjectId(projectId: number, authUser: AuthenticatedUser) {
       });
 
       if (existingTask) {
-        throw new BadRequestException('A task with the same time range already exists');
+        throw new BadRequestException(
+          'A task with the same time range already exists',
+        );
       }
     }
 
@@ -622,7 +672,10 @@ async getLogsByProjectId(projectId: number, authUser: AuthenticatedUser) {
         throw new BadRequestException('Invalid assigned user ID');
       }
 
-      if (newAssignedUser.role?.name !== 'Employee' && newAssignedUser.role?.name !== 'Manager') {
+      if (
+        newAssignedUser.role?.name !== 'Employee' &&
+        newAssignedUser.role?.name !== 'Manager'
+      ) {
         throw new BadRequestException(
           'Task can only be assigned to an Employee or Manager',
         );
@@ -691,7 +744,11 @@ async getLogsByProjectId(projectId: number, authUser: AuthenticatedUser) {
     return task;
   }
 
-  async assignTaskToUser(taskId: number, assignedToUserId: number, authUser: AuthenticatedUser) {
+  async assignTaskToUser(
+    taskId: number,
+    assignedToUserId: number,
+    authUser: AuthenticatedUser,
+  ) {
     // Allow Admin/Owner/Manager to assign; assignee must be Employee or Manager
     this.checkAdmin(authUser);
 
@@ -700,12 +757,17 @@ async getLogsByProjectId(projectId: number, authUser: AuthenticatedUser) {
       throw new NotFoundException('Task not found');
     }
 
-    const assignee = await this.userRepo.findOne({ where: { id: assignedToUserId }, relations: ['role'] });
+    const assignee = await this.userRepo.findOne({
+      where: { id: assignedToUserId },
+      relations: ['role'],
+    });
     if (!assignee) {
       throw new BadRequestException('Invalid assigned user ID');
     }
     if (!['Employee', 'Manager'].includes(assignee.role?.name)) {
-      throw new BadRequestException('Task can only be assigned to an Employee or Manager');
+      throw new BadRequestException(
+        'Task can only be assigned to an Employee or Manager',
+      );
     }
 
     // Assign by id; avoid loading extra relations
@@ -715,8 +777,13 @@ async getLogsByProjectId(projectId: number, authUser: AuthenticatedUser) {
 
   async getTaskById(id: number, authUser: AuthenticatedUser) {
     // --- Access: Allow Owner, Manager, and Employee ---
-    if (!authUser?.role?.name || !['Owner', 'Manager', 'Employee'].includes(authUser.role.name)) {
-      throw new UnauthorizedException('Only Owner, Manager, and Employee roles can access this feature');
+    if (
+      !authUser?.role?.name ||
+      !['Owner', 'Manager', 'Employee'].includes(authUser.role.name)
+    ) {
+      throw new UnauthorizedException(
+        'Only Owner, Manager, and Employee roles can access this feature',
+      );
     }
 
     const task = await this.taskRepo.findOne({
@@ -731,14 +798,12 @@ async getLogsByProjectId(projectId: number, authUser: AuthenticatedUser) {
     return task;
   }
 
- 
   async filterTasks(filter: TaskFilterDto, authUser: AuthenticatedUser) {
     this.checkAuth(authUser);
 
     const sortBy = filter.sortBy || 'createdAt';
     const sortOrder: 'ASC' | 'DESC' = 'DESC';
 
-  
     const isUpcomingSort = sortBy === 'startTime';
     const isUpcomingEnd = sortBy === 'endTime';
     const isCreatedAtSort = sortBy === 'createdAt';
@@ -748,7 +813,6 @@ async getLogsByProjectId(projectId: number, authUser: AuthenticatedUser) {
     startOfToday.setHours(0, 0, 0, 0);
     const endOfToday = new Date();
     endOfToday.setHours(23, 59, 59, 999);
-
 
     const where: any = { project: { id: filter.projectId } };
     if (filter.unassigned === true) {
@@ -761,10 +825,15 @@ async getLogsByProjectId(projectId: number, authUser: AuthenticatedUser) {
       // Filter by assignee email when provided
       where.assignedTo = { email: filter.email };
     }
-    
+
     // Filter for closed tasks (tasks that started before today - past tasks)
     if (filter.closedTask === true) {
       where.endTime = LessThan(startOfToday); // Only tasks that started before today
+
+      // For Employees, only show closed tasks assigned to them
+      if (authUser.role?.name === 'Employee') {
+        where.assignedTo = { id: authUser.id };
+      }
     }
     if (isUpcomingSort) {
       // Only include tasks that start now or later to reflect "upcoming"
@@ -782,10 +851,10 @@ async getLogsByProjectId(projectId: number, authUser: AuthenticatedUser) {
       order: isUpcomingSort
         ? { startTime: 'ASC' }
         : isUpcomingEnd
-        ? { endTime: 'ASC' }
-        : isCreatedAtSort
-        ? { createdAt: 'DESC' }
-        : { [sortBy]: sortOrder },
+          ? { endTime: 'ASC' }
+          : isCreatedAtSort
+            ? { createdAt: 'DESC' }
+            : { [sortBy]: sortOrder },
     });
 
     return tasks;
