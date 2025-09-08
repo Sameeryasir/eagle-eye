@@ -9,6 +9,7 @@ export declare class AuthService {
     constructor(userRepo: Repository<Users>, otpRepo: Repository<Otps>, jwtService: JwtService);
     private findUserByEmailOrPhone;
     private generateTokens;
+    private sendEmailAsync;
     sendOtp(email?: string, phone?: string): Promise<{
         message: string;
     }>;

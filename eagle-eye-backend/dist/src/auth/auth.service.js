@@ -44,6 +44,27 @@ let AuthService = class AuthService {
         const refreshToken = await this.jwtService.signAsync({ sub: user.id, email: user.email, type: 'refresh' }, { expiresIn: process.env.REFRESH_TOKEN_EXPIRY });
         return { accessToken, refreshToken };
     }
+    async sendEmailAsync(email, code) {
+        try {
+            const transporter = nodemailer.createTransport({
+                service: 'gmail',
+                auth: {
+                    user: process.env.EMAIL_USER,
+                    pass: process.env.EMAIL_PASS,
+                },
+            });
+            await transporter.sendMail({
+                from: `"My App" <${process.env.EMAIL_USER}>`,
+                to: email,
+                subject: 'Your OTP Code',
+                html: `<p>Hello 👋,</p><p>Your OTP code is: <b>${code}</b></p><p>It will expire in 15 minutes.</p>`,
+            });
+            console.log(`OTP email sent successfully to ${email}`);
+        }
+        catch (error) {
+            console.error(`Failed to send OTP email to ${email}:`, error);
+        }
+    }
     async sendOtp(email, phone) {
         const user = await this.findUserByEmailOrPhone(email, phone);
         const code = Math.floor(100000 + Math.random() * 900000).toString();
@@ -58,19 +79,7 @@ let AuthService = class AuthService {
         }
         await this.otpRepo.save(otp);
         if (email) {
-            const transporter = nodemailer.createTransport({
-                service: 'gmail',
-                auth: {
-                    user: process.env.EMAIL_USER,
-                    pass: process.env.EMAIL_PASS,
-                },
-            });
-            await transporter.sendMail({
-                from: `"My App" <${process.env.EMAIL_USER}>`,
-                to: email,
-                subject: 'Your OTP Code',
-                html: `<p>Hello 👋,</p><p>Your OTP code is: <b>${code}</b></p><p>It will expire in 15 minutes.</p>`,
-            });
+            this.sendEmailAsync(email, code);
             return { message: 'OTP sent to email' };
         }
         return { message: 'OTP generated and saved for phone number' };

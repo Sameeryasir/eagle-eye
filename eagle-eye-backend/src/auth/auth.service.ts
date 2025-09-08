@@ -45,6 +45,34 @@ export class AuthService {
     return { accessToken, refreshToken };
   }
 
+  // --- Email Sending Helper Method ---
+  // Private method to handle email sending asynchronously
+  // This prevents blocking the main OTP flow while email is being sent
+  private async sendEmailAsync(email: string, code: string): Promise<void> {
+    try {
+      const transporter = nodemailer.createTransport({
+        service: 'gmail',
+        auth: {
+          user: process.env.EMAIL_USER,
+          pass: process.env.EMAIL_PASS,
+        },
+      });
+
+      await transporter.sendMail({
+        from: `"My App" <${process.env.EMAIL_USER}>`,
+        to: email,
+        subject: 'Your OTP Code',
+        html: `<p>Hello 👋,</p><p>Your OTP code is: <b>${code}</b></p><p>It will expire in 15 minutes.</p>`,
+      });
+
+      console.log(`OTP email sent successfully to ${email}`);
+    } catch (error) {
+      // Log error but don't throw - email failure shouldn't break OTP flow
+      // The OTP is already saved to database, so user can still verify
+      console.error(`Failed to send OTP email to ${email}:`, error);
+    }
+  }
+
   async sendOtp(email?: string, phone?: string) {
     const user = await this.findUserByEmailOrPhone(email, phone);
 
@@ -63,20 +91,10 @@ export class AuthService {
     await this.otpRepo.save(otp);
 
     if (email) {
-      const transporter = nodemailer.createTransport({
-        service: 'gmail',
-        auth: {
-          user: process.env.EMAIL_USER,
-          pass: process.env.EMAIL_PASS,
-        },
-      });
-
-      await transporter.sendMail({
-        from: `"My App" <${process.env.EMAIL_USER}>`,
-        to: email,
-        subject: 'Your OTP Code',
-        html: `<p>Hello 👋,</p><p>Your OTP code is: <b>${code}</b></p><p>It will expire in 15 minutes.</p>`,
-      });
+      // --- Email Sending (Async) ---
+      // Send email asynchronously to improve response time
+      // User doesn't need to wait for email delivery confirmation
+      this.sendEmailAsync(email, code);
 
       return { message: 'OTP sent to email' };
     }
