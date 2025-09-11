@@ -13,7 +13,8 @@ import { Companies } from './companies.entity';
 import { Projects } from './projects.entity';
 import { Tasks } from './tasks.entity';
 import { Logs } from './logs.entity';
-
+import {expoTokens} from './expoTokens.entity';
+import { Events } from './events.entity';
 @Entity()
 export class Users {
   @PrimaryGeneratedColumn()
@@ -61,4 +62,10 @@ export class Users {
 
   @OneToMany(() => Logs, (log) => log.user)
   logs: Logs[];
+
+  @OneToMany(() => expoTokens, (expoTokens) => expoTokens.user)
+  expoPushTokens: expoTokens[];
+
+  @OneToMany(() => Events, (event) => event.user)
+  events: Events[];
 }

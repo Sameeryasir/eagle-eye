@@ -2,6 +2,7 @@
 import { Module } from '@nestjs/common';
 import { ConfigModule } from '@nestjs/config'; // 👈 ADD THIS
 import { TypeOrmModule } from '@nestjs/typeorm';
+import { ScheduleModule } from '@nestjs/schedule';
 import { AppController } from './app.controller';
 import { AppService } from './app.service';
 import { AuthModule } from './auth/auth.module';
@@ -13,10 +14,13 @@ import { ProjectModule } from './project/project.module';
 import { TaskModule } from './task/task.module';
 import { LogModule } from './log/log.module';
 import { ImageModule } from './image/image.module';
+import { NotificationModule } from './notification/notification.module';
+import { EventModule } from './event/event.module';
 
 @Module({
   imports: [
     ConfigModule.forRoot({ isGlobal: true }), // 👈 ADD THIS
+    ScheduleModule.forRoot(), // Enable cron job scheduling
     TypeOrmModule.forRoot({
       type: 'postgres',
       host: process.env.DB_HOST,
@@ -37,6 +41,8 @@ import { ImageModule } from './image/image.module';
     TaskModule,
     LogModule,
     ImageModule,
+    NotificationModule,
+    EventModule,
 
 
   ],

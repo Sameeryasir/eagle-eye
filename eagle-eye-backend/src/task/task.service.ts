@@ -333,18 +333,9 @@ export class TaskService {
       throw new BadRequestException('Start time is required');
     }
 
-    // --- Time Validation (Draft-friendly) ---
-    // If frontend supplies minStartTime (captured when draft opened), ensure startTime >= minStartTime.
-    // Do NOT compare to server now, so drafts created minutes later still pass.
-    if (startTime && minStartTime) {
-      const startDate = new Date(startTime);
-      const minStart = new Date(minStartTime);
-      if (startDate < minStart) {
-        throw new BadRequestException(
-          'Start time cannot be before the draft start time',
-        );
-      }
-    }
+    // --- Simple Time Conversion ---
+    // Allow tasks to start at any time (including past and present)
+    // No time validation - tasks can be created for any time
     // Only enforce ordering between start and end if both provided
     if (startTime && endTime) {
       const startDate = new Date(startTime);

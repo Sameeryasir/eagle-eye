@@ -19,8 +19,16 @@ export class AuthController {
   }
   @Post('send-otp')
   async sendOtp(@Body(ValidationPipe) dto: SendOtpDto) {
-    console.log(dto);
-    return this.authService.sendOtp(dto.email, dto.phone);
+    console.log('📧 Send OTP Request:', dto);
+    
+    try {
+      const result = await this.authService.sendOtp(dto.email, dto.phone);
+      console.log('✅ OTP sent successfully:', result);
+      return result;
+    } catch (error) {
+      console.error('❌ Error in sendOtp controller:', error);
+      throw error; // Re-throw to let NestJS handle the response
+    }
   }
 
   @Post('verify-otp')
