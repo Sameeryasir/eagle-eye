@@ -26,8 +26,16 @@ let AuthController = class AuthController {
         return { messege: 'helloworld' };
     }
     async sendOtp(dto) {
-        console.log(dto);
-        return this.authService.sendOtp(dto.email, dto.phone);
+        console.log('📧 Send OTP Request:', dto);
+        try {
+            const result = await this.authService.sendOtp(dto.email, dto.phone);
+            console.log('✅ OTP sent successfully:', result);
+            return result;
+        }
+        catch (error) {
+            console.error('❌ Error in sendOtp controller:', error);
+            throw error;
+        }
     }
     async verifyOtp(dto) {
         return this.authService.verifyOtp(dto.code, dto.email, dto.phone);

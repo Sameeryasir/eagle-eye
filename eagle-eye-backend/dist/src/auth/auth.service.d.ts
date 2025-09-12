@@ -2,6 +2,7 @@ import { Users } from 'src/entities/users.entity';
 import { Repository } from 'typeorm';
 import { Otps } from 'src/entities/otps.entity';
 import { JwtService } from '@nestjs/jwt';
+import 'dotenv/config';
 export declare class AuthService {
     private userRepo;
     private otpRepo;
@@ -29,4 +30,5 @@ export declare class AuthService {
         access_token: string;
         refresh_token: string;
     }>;
+    private sendEmailViaBrevo;
 }

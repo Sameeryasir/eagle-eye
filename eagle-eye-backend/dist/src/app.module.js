@@ -10,6 +10,7 @@ exports.AppModule = void 0;
 const common_1 = require("@nestjs/common");
 const config_1 = require("@nestjs/config");
 const typeorm_1 = require("@nestjs/typeorm");
+const schedule_1 = require("@nestjs/schedule");
 const app_controller_1 = require("./app.controller");
 const app_service_1 = require("./app.service");
 const auth_module_1 = require("./auth/auth.module");
@@ -19,6 +20,8 @@ const project_module_1 = require("./project/project.module");
 const task_module_1 = require("./task/task.module");
 const log_module_1 = require("./log/log.module");
 const image_module_1 = require("./image/image.module");
+const notification_module_1 = require("./notification/notification.module");
+const event_module_1 = require("./event/event.module");
 let AppModule = class AppModule {
 };
 exports.AppModule = AppModule;
@@ -26,6 +29,7 @@ exports.AppModule = AppModule = __decorate([
     (0, common_1.Module)({
         imports: [
             config_1.ConfigModule.forRoot({ isGlobal: true }),
+            schedule_1.ScheduleModule.forRoot(),
             typeorm_1.TypeOrmModule.forRoot({
                 type: 'postgres',
                 host: process.env.DB_HOST,
@@ -46,6 +50,8 @@ exports.AppModule = AppModule = __decorate([
             task_module_1.TaskModule,
             log_module_1.LogModule,
             image_module_1.ImageModule,
+            notification_module_1.NotificationModule,
+            event_module_1.EventModule,
         ],
         controllers: [app_controller_1.AppController],
         providers: [app_service_1.AppService],

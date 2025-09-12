@@ -248,13 +248,6 @@ let TaskService = class TaskService {
         if (!startTime) {
             throw new common_1.BadRequestException('Start time is required');
         }
-        if (startTime && minStartTime) {
-            const startDate = new Date(startTime);
-            const minStart = new Date(minStartTime);
-            if (startDate < minStart) {
-                throw new common_1.BadRequestException('Start time cannot be before the draft start time');
-            }
-        }
         if (startTime && endTime) {
             const startDate = new Date(startTime);
             const endDate = new Date(endTime);

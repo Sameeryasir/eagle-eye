@@ -17,6 +17,8 @@ const companies_entity_1 = require("./companies.entity");
 const projects_entity_1 = require("./projects.entity");
 const tasks_entity_1 = require("./tasks.entity");
 const logs_entity_1 = require("./logs.entity");
+const expoTokens_entity_1 = require("./expoTokens.entity");
+const events_entity_1 = require("./events.entity");
 let Users = class Users {
     id;
     email;
@@ -32,6 +34,8 @@ let Users = class Users {
     ownedProjects;
     tasks;
     logs;
+    expoPushTokens;
+    events;
 };
 exports.Users = Users;
 __decorate([
@@ -93,6 +97,14 @@ __decorate([
     (0, typeorm_1.OneToMany)(() => logs_entity_1.Logs, (log) => log.user),
     __metadata("design:type", Array)
 ], Users.prototype, "logs", void 0);
+__decorate([
+    (0, typeorm_1.OneToMany)(() => expoTokens_entity_1.expoTokens, (expoTokens) => expoTokens.user),
+    __metadata("design:type", Array)
+], Users.prototype, "expoPushTokens", void 0);
+__decorate([
+    (0, typeorm_1.OneToMany)(() => events_entity_1.Events, (event) => event.user),
+    __metadata("design:type", Array)
+], Users.prototype, "events", void 0);
 exports.Users = Users = __decorate([
     (0, typeorm_1.Entity)()
 ], Users);

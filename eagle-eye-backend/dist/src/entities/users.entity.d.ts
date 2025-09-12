@@ -4,6 +4,8 @@ import { Companies } from './companies.entity';
 import { Projects } from './projects.entity';
 import { Tasks } from './tasks.entity';
 import { Logs } from './logs.entity';
+import { expoTokens } from './expoTokens.entity';
+import { Events } from './events.entity';
 export declare class Users {
     id: number;
     email: string;
@@ -19,4 +21,6 @@ export declare class Users {
     ownedProjects: Projects[];
     tasks: Tasks[];
     logs: Logs[];
+    expoPushTokens: expoTokens[];
+    events: Events[];
 }
