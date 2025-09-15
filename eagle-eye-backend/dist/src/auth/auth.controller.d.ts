@@ -9,6 +9,12 @@ export declare class AuthController {
     }>;
     sendOtp(dto: SendOtpDto): Promise<{
         message: string;
+        otp: string;
+        email: string;
+    } | {
+        message: string;
+        otp?: undefined;
+        email?: undefined;
     }>;
     verifyOtp(dto: VerifyOtpDto): Promise<{
         access_token: string;
@@ -25,5 +31,15 @@ export declare class AuthController {
     refreshToken(refreshToken: string): Promise<{
         access_token: string;
         refresh_token: string;
+    }>;
+    verifyToken(req: any): Promise<{
+        success: boolean;
+        message: string;
+        user: {
+            id: any;
+            email: any;
+            phone: any;
+            name: any;
+        };
     }>;
 }

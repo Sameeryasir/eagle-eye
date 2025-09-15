@@ -5,10 +5,13 @@ import {
   Get,
   Post,
   ValidationPipe,
+  UseGuards,
+  Request,
 } from '@nestjs/common';
 import { AuthService } from './auth.service';
 import { SendOtpDto } from './authDto/send-otp.dto';
 import { VerifyOtpDto } from './authDto/verify-otp.dto';
+import { AuthGuard } from '@nestjs/passport';
 @Controller('auth')
 export class AuthController {
   constructor(private readonly authService: AuthService) {}
@@ -42,5 +45,29 @@ export class AuthController {
     }
 
     return this.authService.refreshAccessToken(refreshToken);
+  }
+
+  // --- Verify Token Endpoint ---
+  // Used by mobile app to check if user is still authenticated
+  @Get('verify')
+  @UseGuards(AuthGuard('jwt'))
+  async verifyToken(@Request() req: any) {
+    try {
+      // If we reach here, the JWT token is valid
+      const user = req.user;
+      
+      return {
+        success: true,
+        message: 'Token is valid',
+        user: {
+          id: user.id,
+          email: user.email,
+          phone: user.phone,
+          name: user.name
+        }
+      };
+    } catch (error) {
+      throw new BadRequestException('Invalid token');
+    }
   }
 }

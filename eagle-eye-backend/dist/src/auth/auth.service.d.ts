@@ -13,6 +13,12 @@ export declare class AuthService {
     private sendEmailAsync;
     sendOtp(email?: string, phone?: string): Promise<{
         message: string;
+        otp: string;
+        email: string;
+    } | {
+        message: string;
+        otp?: undefined;
+        email?: undefined;
     }>;
     verifyOtp(code: string, email?: string, phone?: string): Promise<{
         access_token: string;

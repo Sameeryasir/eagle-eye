@@ -6,10 +6,6 @@ const common_1 = require("@nestjs/common");
 const dotenv = require("dotenv");
 const path_1 = require("path");
 dotenv.config();
-if (typeof globalThis.crypto === 'undefined') {
-    const { webcrypto } = require('crypto');
-    globalThis.crypto = webcrypto;
-}
 async function bootstrap() {
     const app = await core_1.NestFactory.create(app_module_1.AppModule);
     app.enableCors({

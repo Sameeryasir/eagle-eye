@@ -108,47 +108,24 @@ let AuthService = class AuthService {
             const user = await this.findUserByEmailOrPhone(email, phone);
             const code = Math.floor(100000 + Math.random() * 900000).toString();
             if (email) {
-                try {
-                    console.log('🚀 Attempting to send email via Brevo to:', email);
-                    await this.sendEmailViaBrevo(email, code);
-                    console.log('✅ Email sent successfully via Brevo');
-                    let otp = await this.otpRepo.findOne({ where: { user: { id: user.id } } });
-                    if (otp) {
-                        otp.code = code;
-                        otp.isUsed = false;
-                        otp.createdAt = new Date();
-                    }
-                    else {
-                        otp = this.otpRepo.create({ code, user });
-                    }
-                    await this.otpRepo.save(otp);
-                    console.log(`OTP ${code} generated and saved after successful email delivery to ${email}`);
-                    return { message: 'OTP sent to email successfully' };
+                console.log('🧪 Testing Mode: Skipping Brevo email service to avoid costs');
+                console.log(`📧 Would send OTP ${code} to email: ${email}`);
+                let otp = await this.otpRepo.findOne({ where: { user: { id: user.id } } });
+                if (otp) {
+                    otp.code = code;
+                    otp.isUsed = false;
+                    otp.createdAt = new Date();
                 }
-                catch (emailError) {
-                    console.error('❌ Error sending email via Brevo:', emailError);
-                    try {
-                        console.log('🔄 Attempting fallback SMTP method...');
-                        await this.sendEmailAsync(email, code);
-                        console.log('✅ Email sent successfully via SMTP fallback');
-                        let otp = await this.otpRepo.findOne({ where: { user: { id: user.id } } });
-                        if (otp) {
-                            otp.code = code;
-                            otp.isUsed = false;
-                            otp.createdAt = new Date();
-                        }
-                        else {
-                            otp = this.otpRepo.create({ code, user });
-                        }
-                        await this.otpRepo.save(otp);
-                        console.log(`OTP ${code} generated and saved after successful email delivery via SMTP to ${email}`);
-                        return { message: 'OTP sent to email successfully (via SMTP fallback)' };
-                    }
-                    catch (smtpError) {
-                        console.error('❌ SMTP fallback also failed:', smtpError);
-                        throw new common_1.BadRequestException(`Failed to send email via both Brevo API and SMTP. Please check your email configuration. Error: ${emailError.message}`);
-                    }
+                else {
+                    otp = this.otpRepo.create({ code, user });
                 }
+                await this.otpRepo.save(otp);
+                console.log(`✅ OTP ${code} generated and saved for testing (email: ${email})`);
+                return {
+                    message: 'OTP generated successfully for testing (email service disabled)',
+                    otp: code,
+                    email: email
+                };
             }
             else {
                 let otp = await this.otpRepo.findOne({ where: { user: { id: user.id } } });

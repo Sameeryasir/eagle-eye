@@ -123,15 +123,23 @@ export class EventController {
     }
 
     // --- Update Event Endpoint ---
-    // Updates an existing event
+    // Updates an existing event with proper authorization
     @Put(':id')
     @UseGuards(AuthGuard('jwt'))
     async updateEvent(
         @Param('id', ParseIntPipe) id: number,
-        @Body(ValidationPipe) updateData: UpdateEventDto
+        @Body(ValidationPipe) updateData: UpdateEventDto,
+        @Request() req: any
     ) {
         try {
-            const event = await this.eventService.updateEvent(id, updateData);
+            // Extract user ID from JWT token for authorization
+            const userId = req.user.id;
+            
+            if (!userId) {
+                throw new BadRequestException('User ID not found in token');
+            }
+
+            const event = await this.eventService.updateEvent(id, updateData, userId);
             return {
                 success: true,
                 message: 'Event updated successfully',

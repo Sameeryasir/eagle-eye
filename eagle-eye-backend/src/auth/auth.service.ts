@@ -125,6 +125,34 @@ export class AuthService {
       const code = Math.floor(100000 + Math.random() * 900000).toString();
 
       if (email) {
+        // --- Testing Mode: Skip Brevo to Avoid Costs ---
+        // Generate and save OTP without sending email for testing
+        console.log('🧪 Testing Mode: Skipping Brevo email service to avoid costs');
+        console.log(`📧 Would send OTP ${code} to email: ${email}`);
+        
+        // Save the OTP directly for testing
+        let otp = await this.otpRepo.findOne({ where: { user: { id: user.id } } });
+
+        if (otp) {
+          otp.code = code;
+          otp.isUsed = false;
+          otp.createdAt = new Date();
+        } else {
+          otp = this.otpRepo.create({ code, user });
+        }
+
+        await this.otpRepo.save(otp);
+        console.log(`✅ OTP ${code} generated and saved for testing (email: ${email})`);
+        
+        return { 
+          message: 'OTP generated successfully for testing (email service disabled)', 
+          otp: code, // Include OTP in response for testing
+          email: email 
+        };
+
+        // --- PRODUCTION CODE (COMMENTED OUT FOR TESTING) ---
+        // Uncomment this section when ready for production to avoid Brevo costs
+        /*
         // --- Send Email First ---
         // Only generate and save OTP if email is sent successfully
         try {
@@ -176,6 +204,7 @@ export class AuthService {
             throw new BadRequestException(`Failed to send email via both Brevo API and SMTP. Please check your email configuration. Error: ${emailError.message}`);
           }
         }
+        */
       } else {
         // For phone number - generate OTP directly (no email to send)
         let otp = await this.otpRepo.findOne({ where: { user: { id: user.id } } });

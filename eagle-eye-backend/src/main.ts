@@ -8,12 +8,7 @@ import { join } from 'path';
 // Load environment variables
 dotenv.config();
 
-// --- Crypto Polyfill Fix ---
-// Fix for "crypto is not defined" error in @nestjs/schedule
-if (typeof globalThis.crypto === 'undefined') {
-  const { webcrypto } = require('crypto');
-  globalThis.crypto = webcrypto;
-}
+
 
 async function bootstrap() {
   const app = await NestFactory.create<NestExpressApplication>(AppModule);

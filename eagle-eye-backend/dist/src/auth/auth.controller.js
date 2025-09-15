@@ -17,6 +17,7 @@ const common_1 = require("@nestjs/common");
 const auth_service_1 = require("./auth.service");
 const send_otp_dto_1 = require("./authDto/send-otp.dto");
 const verify_otp_dto_1 = require("./authDto/verify-otp.dto");
+const passport_1 = require("@nestjs/passport");
 let AuthController = class AuthController {
     authService;
     constructor(authService) {
@@ -45,6 +46,24 @@ let AuthController = class AuthController {
             throw new common_1.BadRequestException('Refresh token is required');
         }
         return this.authService.refreshAccessToken(refreshToken);
+    }
+    async verifyToken(req) {
+        try {
+            const user = req.user;
+            return {
+                success: true,
+                message: 'Token is valid',
+                user: {
+                    id: user.id,
+                    email: user.email,
+                    phone: user.phone,
+                    name: user.name
+                }
+            };
+        }
+        catch (error) {
+            throw new common_1.BadRequestException('Invalid token');
+        }
     }
 };
 exports.AuthController = AuthController;
@@ -75,6 +94,14 @@ __decorate([
     __metadata("design:paramtypes", [String]),
     __metadata("design:returntype", Promise)
 ], AuthController.prototype, "refreshToken", null);
+__decorate([
+    (0, common_1.Get)('verify'),
+    (0, common_1.UseGuards)((0, passport_1.AuthGuard)('jwt')),
+    __param(0, (0, common_1.Request)()),
+    __metadata("design:type", Function),
+    __metadata("design:paramtypes", [Object]),
+    __metadata("design:returntype", Promise)
+], AuthController.prototype, "verifyToken", null);
 exports.AuthController = AuthController = __decorate([
     (0, common_1.Controller)('auth'),
     __metadata("design:paramtypes", [auth_service_1.AuthService])
